@@ -25,10 +25,14 @@ const UserManagement = () => {
 
   const fetchOrganizationData = async () => {
     try {
-      const res = await axios.get('/company/data');
-      setPlants(res.data.plants || []);
-      setBranches(res.data.branches || []);
-      setBusinessUnits(res.data.businessUnits || []);
+      const [plantsRes, branchesRes, buRes] = await Promise.all([
+        axios.get('/company/plants'),
+        axios.get('/company/branches'),
+        axios.get('/company/business-units')
+      ]);
+      setPlants(plantsRes.data.data || []);
+      setBranches(branchesRes.data.data || []);
+      setBusinessUnits(buRes.data.data || []);
     } catch (err) {
       console.error(err);
     }

@@ -18,6 +18,7 @@ router.put('/quotation/:id/status', salesController.changeQuotationStatus);
 // Sales Order Routes
 router.get('/order', salesController.getAllOrders);
 router.post('/order', salesController.createOrder);
+router.put('/order/:id', salesController.updateOrder);
 router.put('/order/:id/status', salesController.updateOrderStatus);
 router.put('/order/:id/atp', salesController.performATPCheck);
 router.put('/order/:id/tracking', salesController.updateTracking);

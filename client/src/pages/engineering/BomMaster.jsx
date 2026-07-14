@@ -112,7 +112,7 @@ const BomMaster = () => {
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>Bill of Materials (BOM)</h1>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Manage Multi-Level BOMs and Versions</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setFormData({ components: [] }); setEditingId(null); setIsModalOpen(true); }}>
+        <button className="btn btn-primary" onClick={() => { setFormData({ components: [], bomNumber: 'BOM-' + Math.random().toString(36).substring(2, 8).toUpperCase() }); setEditingId(null); setIsModalOpen(true); }}>
           <Plus size={14} /> Create BOM
         </button>
       </div>
@@ -133,7 +133,7 @@ const BomMaster = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="input-group">
               <label className="input-label">BOM Number</label>
-              <input type="text" className="input-field" required value={formData.bomNumber || ''} onChange={e => setFormData({...formData, bomNumber: e.target.value})} />
+              <input type="text" className="input-field" required readOnly value={formData.bomNumber || ''} onChange={e => setFormData({...formData, bomNumber: e.target.value})} />
             </div>
             <div className="input-group">
               <label className="input-label">Parent Product</label>

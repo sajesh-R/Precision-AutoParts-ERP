@@ -167,3 +167,13 @@ exports.updateTracking = async (req, res) => {
     res.json({ success: true, data: order });
   } catch (error) { res.status(400).json({ success: false, message: error.message }); }
 };
+
+exports.updateOrder = async (req, res) => {
+  try {
+    const order = await SalesOrder.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!order) return res.status(404).json({ success: false, message: 'Sales order not found' });
+    await logAudit('UPDATE', 'SalesOrder', order._id, req.user._id);
+    res.json({ success: true, data: order });
+  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+};
+

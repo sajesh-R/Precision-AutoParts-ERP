@@ -62,7 +62,7 @@ const IncomingQuality = () => {
   const columns = [
     { header: 'Insp ID', accessor: 'inspectionNumber' },
     { header: 'GRN Ref', render: (row) => <strong>{row.referenceId}</strong> },
-    { header: 'Vendor', render: (row) => row.vendorId?.vendorName || '-' },
+    { header: 'Vendor', render: (row) => row.vendorId?.name || '-' },
     { header: 'Status', render: (row) => (
       <span style={{ 
         padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
@@ -112,7 +112,7 @@ const IncomingQuality = () => {
             <label className="input-label">Source Vendor</label>
             <select className="input-field" required value={formData.vendorId || (formData.vendorId?._id) || ''} onChange={e => setFormData({...formData, vendorId: e.target.value})} disabled={!!formData._id}>
               <option value="" disabled>Select Vendor</option>
-              {vendors.map(v => <option key={v._id} value={v._id}>{v.vendorName}</option>)}
+              {vendors.map(v => <option key={v._id} value={v._id}>{v.name}</option>)}
             </select>
           </div>
 
@@ -131,6 +131,11 @@ const IncomingQuality = () => {
           <div className="input-group">
             <label className="input-label">Inspection Results / Observations</label>
             <textarea className="input-field" rows="3" required value={formData.inspectionResults || ''} onChange={e => setFormData({...formData, inspectionResults: e.target.value})}></textarea>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Inspector Name</label>
+            <input type="text" className="input-field" required value={formData.inspectorName || ''} onChange={e => setFormData({...formData, inspectorName: e.target.value})} placeholder="e.g. John Doe" />
           </div>
 
           <div style={{ backgroundColor: '#f59e0b15', padding: '12px', borderRadius: '6px', fontSize: '12px', color: '#f59e0b', marginTop: '8px' }}>

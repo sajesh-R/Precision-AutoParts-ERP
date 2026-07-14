@@ -102,6 +102,13 @@ const CompanySetup = () => {
     setIsModalOpen(true);
   };
 
+  const getIsActive = (row) => {
+    if (activeTab === 'profiles') {
+      return row.status === 'Active';
+    }
+    return !!row.isActive;
+  };
+
   const toggleStatus = async (row) => {
     try {
       let endpoint = '';
@@ -113,7 +120,13 @@ const CompanySetup = () => {
         case 'cost_centers': endpoint = '/company/cost-centers'; break;
         case 'business_units': endpoint = '/company/business-units'; break;
       }
-      await axios.put(`${endpoint}/${row._id}`, { isActive: !row.isActive });
+      
+      const currentActive = getIsActive(row);
+      if (activeTab === 'profiles') {
+        await axios.put(`${endpoint}/${row._id}`, { status: currentActive ? 'Inactive' : 'Active' });
+      } else {
+        await axios.put(`${endpoint}/${row._id}`, { isActive: !currentActive });
+      }
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Error updating status');
@@ -134,11 +147,11 @@ const CompanySetup = () => {
       { header: 'Name', accessor: 'name' }
     ];
 
-    if (activeTab !== 'profiles') {
-      baseCols.push({ header: 'Code', accessor: 'code' });
-    } else {
+    if (activeTab === 'profiles') {
       baseCols.push({ header: 'Reg Number', accessor: 'registrationNumber' });
       baseCols.push({ header: 'Contact Email', accessor: 'contactEmail' });
+    } else {
+      baseCols.push({ header: 'Code', accessor: 'code' });
     }
 
     if (activeTab === 'plants') {
@@ -150,15 +163,18 @@ const CompanySetup = () => {
       baseCols.push({ header: 'Plant', render: (row) => row.plantId?.name || '-' });
     }
 
-    baseCols.push({ header: 'Status', render: (row) => (
-      <span style={{ 
-        padding: '0.25rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 600,
-        backgroundColor: row.isActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-        color: row.isActive ? 'var(--accent-success)' : 'var(--accent-danger)'
-      }}>
-        {row.isActive ? 'Active' : 'Inactive'}
-      </span>
-    )});
+    baseCols.push({ header: 'Status', render: (row) => {
+      const active = getIsActive(row);
+      return (
+        <span style={{ 
+          padding: '0.25rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 600,
+          backgroundColor: active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+          color: active ? 'var(--accent-success)' : 'var(--accent-danger)'
+        }}>
+          {active ? 'Active' : 'Inactive'}
+        </span>
+      );
+    }});
 
     return baseCols;
   };
@@ -169,15 +185,25 @@ const CompanySetup = () => {
         <div>
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>Company Setup</h1>
         </div>
-        {activeTab !== 'profile' && (
-          <button className="btn btn-primary" onClick={() => {
-            setFormData({});
-            setEditingId(null);
-            setIsModalOpen(true);
-          }}>
-            <Plus size={14} /> Add New
-          </button>
-        )}
+        <button className="btn btn-primary" onClick={() => {
+          let code = '';
+          if (activeTab !== 'profiles') {
+            let codePrefix = '';
+            switch (activeTab) {
+              case 'plants': codePrefix = 'PLNT-'; break;
+              case 'branches': codePrefix = 'BRCH-'; break;
+              case 'warehouses': codePrefix = 'WRHS-'; break;
+              case 'cost_centers': codePrefix = 'CC-'; break;
+              case 'business_units': codePrefix = 'BU-'; break;
+            }
+            code = codePrefix + Math.random().toString(36).substring(2, 8).toUpperCase();
+          }
+          setFormData(code ? { code } : {});
+          setEditingId(null);
+          setIsModalOpen(true);
+        }}>
+          <Plus size={14} /> Add New
+        </button>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
@@ -209,18 +235,21 @@ const CompanySetup = () => {
             data={data} 
             isLoading={loading} 
             onEdit={handleEdit}
-            customActions={(row) => (
-              <button 
-                onClick={() => toggleStatus(row)} 
-                title={row.isActive ? "Deactivate" : "Activate"} 
-                style={{ 
-                  background: 'none', border: 'none', cursor: 'pointer', display: 'flex',
-                  color: row.isActive ? 'var(--accent-danger)' : 'var(--accent-success)' 
-                }}
-              >
-                {row.isActive ? <XCircle size={14} /> : <CheckCircle size={14} />}
-              </button>
-            )}
+            customActions={(row) => {
+              const active = getIsActive(row);
+              return (
+                <button 
+                  onClick={() => toggleStatus(row)} 
+                  title={active ? "Deactivate" : "Activate"} 
+                  style={{ 
+                    background: 'none', border: 'none', cursor: 'pointer', display: 'flex',
+                    color: active ? 'var(--accent-danger)' : 'var(--accent-success)' 
+                  }}
+                >
+                  {active ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                </button>
+              );
+            }}
           />
         </div>
       </div>
@@ -236,7 +265,7 @@ const CompanySetup = () => {
           {activeTab !== 'profiles' && (
             <div className="input-group">
               <label className="input-label">Code</label>
-              <input type="text" className="input-field" required 
+              <input type="text" className="input-field" required readOnly 
                      value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
             </div>
           )}

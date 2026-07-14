@@ -32,7 +32,7 @@ exports.getAllInspections = async (req, res) => {
 exports.recordInspection = async (req, res) => {
   try {
     req.body.inspectionNumber = `QI-${Date.now().toString().slice(-6)}`;
-    req.body.inspectorName = req.user.name;
+    req.body.inspectorName = req.body.inspectorName || `${req.user.firstName} ${req.user.lastName}`.trim();
 
     // Vendor evaluation logic for incoming
     if (req.body.type === 'Incoming' && req.body.status !== 'Pending') {

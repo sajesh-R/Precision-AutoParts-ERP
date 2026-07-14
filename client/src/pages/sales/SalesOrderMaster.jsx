@@ -55,11 +55,23 @@ const SalesOrderMaster = () => {
     }
   };
 
+  const handleEdit = (row) => {
+    console.log('handleEdit clicked for row:', row);
+    alert('Edit Sales Order clicked for: ' + row.orderNumber);
+    setFormData({
+      ...row,
+      customerId: row.customerId?._id || row.customerId,
+      quotationId: row.quotationId?._id || row.quotationId,
+    });
+    setEditingId(row._id);
+    setIsModalOpen(true);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       if (editingId) {
-        // Just for demo, a true app would have full update support
+        await axios.put(`/sales/order/${editingId}`, formData);
       } else {
         await axios.post('/sales/order', formData);
       }
@@ -150,7 +162,7 @@ const SalesOrderMaster = () => {
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>Sales Order Management</h1>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Manage Orders, ATP, and Order Tracking</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setFormData({ items: [], summary: {} }); setEditingId(null); setIsModalOpen(true); }}>
+         <button className="btn btn-primary" onClick={() => { setFormData({ items: [], summary: {}, orderNumber: 'SO-' + Math.random().toString(36).substring(2, 8).toUpperCase() }); setEditingId(null); setIsModalOpen(true); }}>
           <Plus size={14} /> Create Sales Order
         </button>
       </div>
@@ -161,7 +173,7 @@ const SalesOrderMaster = () => {
             columns={columns} 
             data={orders} 
             isLoading={loading} 
-            onEdit={() => {}} // Disabled generic edit for this demo
+            onEdit={handleEdit}
             customActions={(row) => (
               <>
                 <button onClick={() => openAtpModal(row)} title="ATP Check" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', marginLeft: '8px' }}><PackageSearch size={14} /></button>
@@ -198,7 +210,7 @@ const SalesOrderMaster = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="input-group">
               <label className="input-label">Order Number</label>
-              <input type="text" className="input-field" required value={formData.orderNumber || ''} onChange={e => setFormData({...formData, orderNumber: e.target.value})} />
+              <input type="text" className="input-field" required readOnly value={formData.orderNumber || ''} onChange={e => setFormData({...formData, orderNumber: e.target.value})} />
             </div>
             <div className="input-group">
               <label className="input-label">Reference Quotation</label>

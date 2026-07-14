@@ -113,7 +113,7 @@ const RoutingMaster = () => {
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>Routing Management</h1>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Define Manufacturing Processes</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setFormData({ operations: [] }); setEditingId(null); setIsModalOpen(true); }}>
+        <button className="btn btn-primary" onClick={() => { setFormData({ operations: [], routingNumber: 'ROUT-' + Math.random().toString(36).substring(2, 8).toUpperCase() }); setEditingId(null); setIsModalOpen(true); }}>
           <Plus size={14} /> Create Routing
         </button>
       </div>
@@ -134,7 +134,7 @@ const RoutingMaster = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="input-group">
               <label className="input-label">Routing Number</label>
-              <input type="text" className="input-field" required value={formData.routingNumber || ''} onChange={e => setFormData({...formData, routingNumber: e.target.value})} />
+              <input type="text" className="input-field" required readOnly value={formData.routingNumber || ''} onChange={e => setFormData({...formData, routingNumber: e.target.value})} />
             </div>
             <div className="input-group">
               <label className="input-label">Product</label>

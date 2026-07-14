@@ -134,7 +134,7 @@ const DemandForecasting = () => {
           </div>
           
           {activeTab === 'forecasts' && (
-            <button className="btn btn-primary" onClick={() => { setFormData({ forecastType: 'Product', seasonalFactor: 1.0 }); setEditingId(null); setIsModalOpen(true); }}>
+            <button className="btn btn-primary" onClick={() => { setFormData({ forecastType: 'Product', seasonalFactor: 1.0, forecastNumber: 'FC-' + Math.random().toString(36).substring(2, 8).toUpperCase() }); setEditingId(null); setIsModalOpen(true); }}>
               <Plus size={14} /> Create Forecast
             </button>
           )}
@@ -156,7 +156,7 @@ const DemandForecasting = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="input-group">
               <label className="input-label">Forecast Number</label>
-              <input type="text" className="input-field" required value={formData.forecastNumber || ''} onChange={e => setFormData({...formData, forecastNumber: e.target.value})} />
+              <input type="text" className="input-field" required readOnly value={formData.forecastNumber || ''} onChange={e => setFormData({...formData, forecastNumber: e.target.value})} />
             </div>
             <div className="input-group">
               <label className="input-label">Period (e.g., Q3-2026, Oct-2026)</label>

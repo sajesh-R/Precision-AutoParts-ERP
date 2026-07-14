@@ -2,6 +2,7 @@ const User = require('../models/User');
 const { LoginHistory } = require('../models/Audit');
 const generateToken = require('../utils/generateToken');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 
 // @desc    Login user
 // @route   POST /api/auth/login

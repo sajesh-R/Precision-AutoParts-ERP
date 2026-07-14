@@ -139,7 +139,19 @@ const WarehouseMaster = () => {
         <div>
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>Warehouse Master Setup</h1>
         </div>
-        <button className="btn btn-primary" onClick={() => { setFormData({}); setEditingId(null); setIsModalOpen(true); }}>
+        <button className="btn btn-primary" onClick={() => {
+          let codePrefix = '';
+          switch (activeTab) {
+            case 'locations': codePrefix = 'LOC-'; break;
+            case 'zones': codePrefix = 'ZN-'; break;
+            case 'racks': codePrefix = 'RCK-'; break;
+            case 'bins': codePrefix = 'BIN-'; break;
+          }
+          const code = codePrefix + Math.random().toString(36).substring(2, 8).toUpperCase();
+          setFormData({ code });
+          setEditingId(null);
+          setIsModalOpen(true);
+        }}>
           <Plus size={14} /> Add New
         </button>
       </div>
@@ -191,7 +203,7 @@ const WarehouseMaster = () => {
           </div>
           <div className="input-group">
             <label className="input-label">Code</label>
-            <input type="text" className="input-field" required value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
+            <input type="text" className="input-field" required readOnly value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
           </div>
           
           {(activeTab === 'locations' || activeTab === 'zones') && (

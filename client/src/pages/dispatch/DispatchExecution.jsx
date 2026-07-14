@@ -37,11 +37,7 @@ const DispatchExecution = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      if (formData._id) {
-        await axios.put(`/dispatch/execution/${formData._id}`, formData);
-      } else {
-        await axios.post('/dispatch/execution', formData);
-      }
+      await axios.post('/dispatch/execution', formData);
       setIsModalOpen(false);
       setFormData({});
       fetchData();

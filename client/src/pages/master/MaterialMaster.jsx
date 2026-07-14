@@ -119,7 +119,7 @@ const MaterialMaster = () => {
         <div>
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>Material Master</h1>
         </div>
-        <button className="btn btn-primary" onClick={() => { setFormData({}); setEditingId(null); setIsModalOpen(true); }}>
+        <button className="btn btn-primary" onClick={() => { setFormData({ code: 'MAT-' + Math.random().toString(36).substring(2, 8).toUpperCase() }); setEditingId(null); setIsModalOpen(true); }}>
           <Plus size={14} /> Add New
         </button>
       </div>
@@ -174,7 +174,7 @@ const MaterialMaster = () => {
             <>
               <div className="input-group">
                 <label className="input-label">Code</label>
-                <input type="text" className="input-field" required value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
+                <input type="text" className="input-field" required readOnly value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
               </div>
               <div className="input-group">
                 <label className="input-label">Category</label>

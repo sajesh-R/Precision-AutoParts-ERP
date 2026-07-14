@@ -110,7 +110,7 @@ const EngineeringChange = () => {
           <h1 style={{ fontSize: '18px', fontWeight: 600 }}>Engineering Change Management</h1>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Track and Approve Change Requests (ECR)</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setFormData({ impactAnalysis: {} }); setEditingId(null); setIsModalOpen(true); }}>
+        <button className="btn btn-primary" onClick={() => { setFormData({ impactAnalysis: {}, ecrNumber: 'ECR-' + Math.random().toString(36).substring(2, 8).toUpperCase() }); setEditingId(null); setIsModalOpen(true); }}>
           <Plus size={14} /> Create ECR
         </button>
       </div>
@@ -145,7 +145,7 @@ const EngineeringChange = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="input-group">
               <label className="input-label">ECR Number</label>
-              <input type="text" className="input-field" required value={formData.ecrNumber || ''} onChange={e => setFormData({...formData, ecrNumber: e.target.value})} />
+              <input type="text" className="input-field" required readOnly value={formData.ecrNumber || ''} onChange={e => setFormData({...formData, ecrNumber: e.target.value})} />
             </div>
             <div className="input-group">
               <label className="input-label">Title</label>
