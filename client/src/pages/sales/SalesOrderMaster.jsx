@@ -128,6 +128,13 @@ const SalesOrderMaster = () => {
     } catch (err) { alert('Error updating tracking status'); }
   };
 
+  const handleStatusUpdate = async (id, newStatus) => {
+    try {
+      await axios.put(`/sales/order/${id}`, { status: newStatus });
+      fetchData();
+    } catch (err) { alert('Error updating status'); }
+  };
+
   const columns = [
     { header: 'Order No', accessor: 'orderNumber' },
     { header: 'Customer', render: (row) => row.customerId?.name || '-' },
@@ -176,6 +183,11 @@ const SalesOrderMaster = () => {
             onEdit={handleEdit}
             customActions={(row) => (
               <>
+                {row.status === 'Draft' && (
+                  <button onClick={() => handleStatusUpdate(row._id, 'Approved')} title="Approve Order" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10b981', marginLeft: '8px' }}>
+                    <CheckCircle size={14} />
+                  </button>
+                )}
                 <button onClick={() => openAtpModal(row)} title="ATP Check" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', marginLeft: '8px' }}><PackageSearch size={14} /></button>
                 <button onClick={() => advanceTracking(row)} title="Advance Tracking" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-primary)', marginLeft: '8px' }}><Truck size={14} /></button>
               </>
