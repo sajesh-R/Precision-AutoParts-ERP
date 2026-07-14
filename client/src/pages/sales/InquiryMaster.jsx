@@ -55,6 +55,13 @@ const InquiryMaster = () => {
     }
   };
 
+  const handleStatusUpdate = async (id, newStatus) => {
+    try {
+      await axios.put(`/sales/inquiry/${id}`, { status: newStatus });
+      fetchData();
+    } catch (err) { alert('Error updating status'); }
+  };
+
   const handleEdit = (row) => {
     setFormData({ 
       inquiryNumber: row.inquiryNumber,
@@ -115,7 +122,19 @@ const InquiryMaster = () => {
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
         <div style={{ padding: '16px', flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg-primary)' }}>
-          <DataTable columns={columns} data={inquiries} isLoading={loading} onEdit={handleEdit} />
+          <DataTable 
+            columns={columns} 
+            data={inquiries} 
+            isLoading={loading} 
+            onEdit={handleEdit} 
+            customActions={(row) => (
+              row.status === 'Draft' && (
+                <button onClick={() => handleStatusUpdate(row._id, 'Active')} title="Activate Inquiry" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10b981', marginLeft: '8px' }}>
+                  <CheckCircle size={14} />
+                </button>
+              )
+            )}
+          />
         </div>
       </div>
 
