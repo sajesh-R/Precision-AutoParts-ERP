@@ -135,6 +135,7 @@ exports.updateTracking = async (req, res) => {
     if (req.body.newStatusUpdate) {
       tracking.statusUpdates.push(req.body.newStatusUpdate);
       tracking.currentLocation = req.body.newStatusUpdate.location;
+      tracking.overallStatus = req.body.newStatusUpdate.status;
     }
 
     await tracking.save();

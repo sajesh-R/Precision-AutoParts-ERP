@@ -32,7 +32,7 @@ const deliveryTrackingSchema = new mongoose.Schema({
   },
   overallStatus: {
     type: String,
-    enum: ['In-Transit', 'Delivered', 'Exception'],
+    enum: ['In-Transit', 'At Hub', 'Out for Delivery', 'Exception', 'Delivered'],
     default: 'In-Transit'
   }
 }, { timestamps: true });

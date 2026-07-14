@@ -85,15 +85,23 @@ const DeliveryTracking = () => {
         <MapPin size={12} color="var(--text-secondary)" /> {row.currentLocation}
       </div>
     )},
-    { header: 'Status', render: (row) => (
-      <span style={{ 
-        padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-        backgroundColor: row.overallStatus === 'Delivered' ? '#10b98115' : row.overallStatus === 'In-Transit' ? '#3b82f615' : 'var(--bg-tertiary)',
-        color: row.overallStatus === 'Delivered' ? '#10b981' : row.overallStatus === 'In-Transit' ? '#3b82f6' : 'var(--text-secondary)'
-      }}>
-        {row.overallStatus}
-      </span>
-    )},
+    { header: 'Status', render: (row) => {
+      let bg = 'var(--bg-tertiary)';
+      let color = 'var(--text-secondary)';
+      if (row.overallStatus === 'Delivered') { bg = '#10b98115'; color = '#10b981'; }
+      else if (['In-Transit', 'At Hub', 'Out for Delivery'].includes(row.overallStatus)) { bg = '#3b82f615'; color = '#3b82f6'; }
+      else if (row.overallStatus === 'Exception') { bg = '#ef444415'; color = '#ef4444'; }
+      
+      return (
+        <span style={{ 
+          padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
+          backgroundColor: bg,
+          color: color
+        }}>
+          {row.overallStatus}
+        </span>
+      );
+    }},
     { header: 'Last Update', render: (row) => new Date(row.updatedAt).toLocaleString() }
   ];
 
@@ -150,7 +158,13 @@ const DeliveryTracking = () => {
               </div>
               <div className="input-group">
                 <label className="input-label">Status Update</label>
-                <input type="text" className="input-field" required value={formData.newStatus || ''} onChange={e => setFormData({...formData, newStatus: e.target.value})} placeholder="e.g. In Transit, At Hub, Out for Delivery" />
+                <select className="input-field" required value={formData.newStatus || ''} onChange={e => setFormData({...formData, newStatus: e.target.value})}>
+                  <option value="">Select Status...</option>
+                  <option value="In-Transit">In-Transit</option>
+                  <option value="At Hub">At Hub</option>
+                  <option value="Out for Delivery">Out for Delivery</option>
+                  <option value="Exception">Exception</option>
+                </select>
               </div>
               <div className="input-group">
                 <label className="input-label">Remarks</label>
