@@ -27,6 +27,8 @@ router.route('/ledger/:id/post')
   .put(financeController.postLedgerEntry);
 
 // Tax
+router.route('/tax/report')
+  .get(financeController.generateTaxReport);
 router.route('/tax')
   .get(financeController.getTaxes)
   .post(financeController.createTax);

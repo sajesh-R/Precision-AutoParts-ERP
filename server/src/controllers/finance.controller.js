@@ -177,6 +177,39 @@ exports.updateTax = async (req, res) => {
   } catch (error) { res.status(400).json({ success: false, message: error.message }); }
 };
 
+exports.generateTaxReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    let matchQuery = {};
+    if (startDate || endDate) {
+      matchQuery.createdAt = {};
+      if (startDate) matchQuery.createdAt.$gte = new Date(startDate);
+      if (endDate) matchQuery.createdAt.$lte = new Date(endDate);
+    }
+
+    // Output Tax (Sales - AR)
+    const sales = await FinanceAR.find(matchQuery).populate('customerId', 'name').select('invoiceNumber createdAt amount taxAmount status customerId');
+    const totalOutputTax = sales.reduce((acc, curr) => acc + (Number(curr.taxAmount) || 0), 0);
+
+    // Input Tax (Purchases - AP)
+    const purchases = await FinanceAP.find(matchQuery).populate('vendorId', 'name').select('billNumber createdAt amount taxAmount status vendorId');
+    const totalInputTax = purchases.reduce((acc, curr) => acc + (Number(curr.taxAmount) || 0), 0);
+
+    const netTaxLiability = totalOutputTax - totalInputTax;
+
+    res.json({
+      success: true,
+      data: {
+        totalOutputTax,
+        totalInputTax,
+        netTaxLiability,
+        salesTransactions: sales,
+        purchaseTransactions: purchases
+      }
+    });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+};
+
 // ================= FINANCIAL STATEMENTS =================
 
 exports.getStatements = async (req, res) => {
@@ -186,11 +219,13 @@ exports.getStatements = async (req, res) => {
     
     let totalRevenue = 0;
     let totalExpenses = 0;
+    let totalCash = 0;
     
-    // Simplistic P&L logic based on Account Names
+    // Simplistic P&L and Cash logic based on Account Names
     ledgers.forEach(l => {
       const isRevenue = l.accountName.toLowerCase().includes('revenue') || l.accountName.toLowerCase().includes('sales');
       const isExpense = l.accountName.toLowerCase().includes('expense') || l.accountName.toLowerCase().includes('cost');
+      const isCash = l.accountName.toLowerCase().includes('cash') || l.accountName.toLowerCase().includes('bank');
       
       if (isRevenue) {
         if (l.type === 'Credit') {
@@ -206,6 +241,13 @@ exports.getStatements = async (req, res) => {
           totalExpenses -= l.amount;
         }
       }
+      if (isCash) {
+        if (l.type === 'Debit') {
+          totalCash += l.amount;
+        } else if (l.type === 'Credit') {
+          totalCash -= l.amount;
+        }
+      }
     });
 
     const AR = await FinanceAR.find();
@@ -218,8 +260,8 @@ exports.getStatements = async (req, res) => {
       success: true,
       data: {
         profitAndLoss: { revenue: totalRevenue, expenses: totalExpenses, netProfit: totalRevenue - totalExpenses },
-        balanceSheet: { assets: { accountsReceivable: arTotal }, liabilities: { accountsPayable: apTotal } },
-        cashFlow: { operatingActivities: (totalRevenue - totalExpenses) + arTotal - apTotal } // Dummy calc
+        balanceSheet: { assets: { accountsReceivable: arTotal, cashAndEquivalents: totalCash }, liabilities: { accountsPayable: apTotal } },
+        cashFlow: { operatingActivities: (totalRevenue - totalExpenses) - arTotal + apTotal }
       }
     });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -229,12 +271,64 @@ exports.getStatements = async (req, res) => {
 
 exports.getCosting = async (req, res) => {
   try {
-    // Simulated dynamic cost aggregations based on production output and purchase orders
+    const ledgers = await FinanceLedger.find({ status: 'Posted' });
+    const AP = await FinanceAP.find();
+    
+    let totalMaterialCost = 0;
+    let totalLaborCost = 0;
+    let totalOverheadCost = 0;
+    let totalRevenue = 0;
+    let totalExpenses = 0;
+    
+    ledgers.forEach(l => {
+      const name = l.accountName.toLowerCase();
+      
+      const isRevenue = name.includes('revenue') || name.includes('sales');
+      const isExpense = name.includes('expense') || name.includes('cost') || name.includes('purchase') || name.includes('labor') || name.includes('overhead') || name.includes('material');
+      
+      if (isRevenue) {
+        if (l.type === 'Credit') totalRevenue += l.amount;
+        else if (l.type === 'Debit') totalRevenue -= l.amount;
+      }
+      if (isExpense) {
+        if (l.type === 'Debit') totalExpenses += l.amount;
+        else if (l.type === 'Credit') totalExpenses -= l.amount;
+      }
+      
+      if (name.includes('material') || name.includes('inventory') || name.includes('purchase')) {
+        if (l.type === 'Debit') totalMaterialCost += l.amount;
+        else if (l.type === 'Credit') totalMaterialCost -= l.amount;
+      }
+      if (name.includes('labor') || name.includes('salary') || name.includes('wage')) {
+        if (l.type === 'Debit') totalLaborCost += l.amount;
+        else if (l.type === 'Credit') totalLaborCost -= l.amount;
+      }
+      if (name.includes('overhead') || name.includes('rent') || name.includes('utility') || name.includes('maintenance')) {
+        if (l.type === 'Debit') totalOverheadCost += l.amount;
+        else if (l.type === 'Credit') totalOverheadCost -= l.amount;
+      }
+    });
+
+    if (totalMaterialCost === 0 && AP.length > 0) {
+      totalMaterialCost = AP.reduce((acc, bill) => acc + bill.totalAmount, 0);
+    }
+
+    const cogs = totalMaterialCost + totalLaborCost + totalOverheadCost;
+    
+    let grossMargin = '0%';
+    let netMargin = '0%';
+
+    if (totalRevenue > 0) {
+      grossMargin = `${(((totalRevenue - cogs) / totalRevenue) * 100).toFixed(1)}%`;
+      netMargin = `${(((totalRevenue - totalExpenses) / totalRevenue) * 100).toFixed(1)}%`;
+    }
+
     const data = {
-      materialCosting: { totalMaterialCost: 154000, variance: '+2.5%' },
-      productionCosting: { totalLaborCost: 45000, totalOverheadCost: 20000 },
-      profitability: { grossMargin: '35%', netMargin: '18%' }
+      materialCosting: { totalMaterialCost, variance: 'N/A' },
+      productionCosting: { totalLaborCost, totalOverheadCost },
+      profitability: { grossMargin, netMargin }
     };
+    
     res.json({ success: true, data });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 };

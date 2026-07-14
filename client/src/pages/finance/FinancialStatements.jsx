@@ -92,11 +92,11 @@ const FinancialStatements = () => {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', marginTop: '8px' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Cash & Equivalents</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>$125,000.00</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>${(balanceSheet.assets?.cashAndEquivalents || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', backgroundColor: 'var(--bg-secondary)', borderRadius: '6px', marginTop: '16px' }}>
                   <span style={{ fontWeight: 600 }}>Total Assets</span>
-                  <span style={{ fontWeight: 600 }}>${(balanceSheet.assets?.accountsReceivable + 125000).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  <span style={{ fontWeight: 600 }}>${( (balanceSheet.assets?.accountsReceivable || 0) + (balanceSheet.assets?.cashAndEquivalents || 0) ).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
               </div>
 

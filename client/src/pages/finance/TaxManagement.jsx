@@ -11,6 +11,9 @@ const TaxManagement = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ type: 'CGST', isActive: true });
+  
+  const [reportData, setReportData] = useState(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -47,6 +50,17 @@ const TaxManagement = () => {
         <Percent size={12} /> Edit
       </button>
     );
+  };
+
+  const handleGenerateReport = async () => {
+    setGeneratingReport(true);
+    try {
+      const res = await axios.get('/finance/tax/report');
+      setReportData(res.data.data);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error generating report');
+    }
+    setGeneratingReport(false);
   };
 
   const columns = [
@@ -93,11 +107,93 @@ const TaxManagement = () => {
           {activeTab === 'configuration' ? (
             <DataTable columns={columns} data={taxes} isLoading={loading} customActions={actionRenderer} />
           ) : (
-            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              <Calculator size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-              <h3>Tax Reporting Module</h3>
-              <p style={{ fontSize: '13px', marginTop: '8px', maxWidth: '400px', margin: '8px auto' }}>Select a date range to automatically compile all Sales and Purchase transactions and calculate total GST Input and Output tax.</p>
-              <button className="btn btn-primary" style={{ marginTop: '16px' }}>Generate Tax Report</button>
+            <div style={{ padding: '16px' }}>
+              {!reportData ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <Calculator size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  <h3>Tax Reporting Module</h3>
+                  <p style={{ fontSize: '13px', marginTop: '8px', maxWidth: '400px', margin: '8px auto' }}>Click below to automatically compile all Sales and Purchase transactions and calculate total GST Input and Output tax.</p>
+                  <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={handleGenerateReport} disabled={generatingReport}>
+                    {generatingReport ? 'Generating...' : 'Generate Tax Report'}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Tax Summary Report</h3>
+                    <button className="btn btn-secondary" onClick={() => setReportData(null)}>Clear Report</button>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    <div style={{ padding: '16px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Output Tax (Sales)</p>
+                      <h4 style={{ fontSize: '20px', color: 'var(--text-primary)' }}>₹{reportData.totalOutputTax.toFixed(2)}</h4>
+                    </div>
+                    <div style={{ padding: '16px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Total Input Tax (Purchases)</p>
+                      <h4 style={{ fontSize: '20px', color: 'var(--text-primary)' }}>₹{reportData.totalInputTax.toFixed(2)}</h4>
+                    </div>
+                    <div style={{ padding: '16px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Net Tax Liability</p>
+                      <h4 style={{ fontSize: '20px', color: reportData.netTaxLiability > 0 ? '#ef4444' : '#10b981' }}>
+                        ₹{Math.abs(reportData.netTaxLiability).toFixed(2)} {reportData.netTaxLiability > 0 ? '(Payable)' : '(Credit)'}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-primary)' }}>Output Tax Transactions (Sales)</h4>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', marginBottom: '24px', backgroundColor: 'var(--bg-primary)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                        <tr>
+                          <th style={{ padding: '8px', textAlign: 'left' }}>Date</th>
+                          <th style={{ padding: '8px', textAlign: 'left' }}>Invoice #</th>
+                          <th style={{ padding: '8px', textAlign: 'left' }}>Customer</th>
+                          <th style={{ padding: '8px', textAlign: 'right' }}>Amount</th>
+                          <th style={{ padding: '8px', textAlign: 'right' }}>Tax Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.salesTransactions.map(t => (
+                          <tr key={t._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '8px' }}>{new Date(t.createdAt).toLocaleDateString()}</td>
+                            <td style={{ padding: '8px' }}>{t.invoiceNumber}</td>
+                            <td style={{ padding: '8px' }}>{t.customerId?.name || '-'}</td>
+                            <td style={{ padding: '8px', textAlign: 'right' }}>₹{t.amount?.toFixed(2)}</td>
+                            <td style={{ padding: '8px', textAlign: 'right' }}>₹{t.taxAmount?.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-primary)' }}>Input Tax Transactions (Purchases)</h4>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                        <tr>
+                          <th style={{ padding: '8px', textAlign: 'left' }}>Date</th>
+                          <th style={{ padding: '8px', textAlign: 'left' }}>Bill #</th>
+                          <th style={{ padding: '8px', textAlign: 'left' }}>Vendor</th>
+                          <th style={{ padding: '8px', textAlign: 'right' }}>Amount</th>
+                          <th style={{ padding: '8px', textAlign: 'right' }}>Tax Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.purchaseTransactions.map(t => (
+                          <tr key={t._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '8px' }}>{new Date(t.createdAt).toLocaleDateString()}</td>
+                            <td style={{ padding: '8px' }}>{t.billNumber}</td>
+                            <td style={{ padding: '8px' }}>{t.vendorId?.name || '-'}</td>
+                            <td style={{ padding: '8px', textAlign: 'right' }}>₹{t.amount?.toFixed(2)}</td>
+                            <td style={{ padding: '8px', textAlign: 'right' }}>₹{t.taxAmount?.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
