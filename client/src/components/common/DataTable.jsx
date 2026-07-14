@@ -86,13 +86,13 @@ const DataTable = ({ columns, data, onEdit, onDelete, isLoading, customActions, 
                       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center' }}>
                         {customActions && customActions(row)}
                         {onEdit && (
-                          <button onClick={() => onEdit(row)} title="Edit" style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', padding: '2px', display: 'flex' }}>
-                            <Edit2 size={14} />
+                          <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(row); }} title="Edit" style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', padding: '2px', display: 'flex' }}>
+                            <Edit2 size={14} style={{ pointerEvents: 'none' }} />
                           </button>
                         )}
                         {onDelete && (
-                          <button onClick={() => onDelete(row)} title="Delete" style={{ background: 'none', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '2px', display: 'flex' }}>
-                            <Trash2 size={14} />
+                          <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(row); }} title="Delete" style={{ background: 'none', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '2px', display: 'flex' }}>
+                            <Trash2 size={14} style={{ pointerEvents: 'none' }} />
                           </button>
                         )}
                       </div>

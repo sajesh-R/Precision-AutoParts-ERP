@@ -56,8 +56,6 @@ const SalesOrderMaster = () => {
   };
 
   const handleEdit = (row) => {
-    console.log('handleEdit clicked for row:', row);
-    alert('Edit Sales Order clicked for: ' + row.orderNumber);
     setFormData({
       ...row,
       customerId: row.customerId?._id || row.customerId,
