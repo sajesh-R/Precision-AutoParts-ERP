@@ -51,6 +51,19 @@ exports.approveRequest = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid approval state' });
     }
 
+    // Validate the approving user has the correct role for this step
+    const userRoleId = req.user.role._id.toString();
+    const requiredRoleId = currentStep.roleId ? currentStep.roleId.toString() : null;
+    if (requiredRoleId && userRoleId !== requiredRoleId && req.user.role.name !== 'Super Admin') {
+      // Check delegation
+      const User = require('../models/User');
+      const delegators = await User.find({ delegatedTo: req.user._id }).select('role');
+      const delegatedRoleIds = delegators.map(d => d.role.toString());
+      if (!delegatedRoleIds.includes(requiredRoleId)) {
+        return res.status(403).json({ success: false, message: 'You do not have the required role to approve this step' });
+      }
+    }
+
     // Mark current step as approved
     currentStep.status = 'Approved';
     currentStep.actionedBy = req.user._id;

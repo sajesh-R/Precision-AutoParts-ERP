@@ -34,6 +34,42 @@ exports.createARInvoice = async (req, res) => {
     req.body.totalAmount = (Number(req.body.amount) || 0) + (Number(req.body.taxAmount) || 0);
     req.body.outstandingAmount = req.body.totalAmount;
     const invoice = await FinanceAR.create(req.body);
+
+    // Auto-post to General Ledger: Debit Accounts Receivable, Credit Revenue
+    const jeNumber = `JE-${Date.now().toString().slice(-6)}`;
+    await FinanceLedger.create({
+      entryNumber: `${jeNumber}-DR`,
+      description: `AR Invoice ${invoice.invoiceNumber} - Accounts Receivable`,
+      accountName: 'Accounts Receivable',
+      type: 'Debit',
+      amount: invoice.totalAmount,
+      referenceType: 'Invoice',
+      referenceId: invoice._id,
+      status: 'Posted'
+    });
+    await FinanceLedger.create({
+      entryNumber: `${jeNumber}-CR`,
+      description: `AR Invoice ${invoice.invoiceNumber} - Revenue`,
+      accountName: 'Sales Revenue',
+      type: 'Credit',
+      amount: invoice.amount,
+      referenceType: 'Invoice',
+      referenceId: invoice._id,
+      status: 'Posted'
+    });
+    if (invoice.taxAmount > 0) {
+      await FinanceLedger.create({
+        entryNumber: `${jeNumber}-TX`,
+        description: `AR Invoice ${invoice.invoiceNumber} - Output Tax`,
+        accountName: 'Output Tax Payable',
+        type: 'Credit',
+        amount: invoice.taxAmount,
+        referenceType: 'Invoice',
+        referenceId: invoice._id,
+        status: 'Posted'
+      });
+    }
+
     await logAudit('CREATE', 'FinanceAR', invoice._id, req.user._id);
     res.status(201).json({ success: true, data: invoice });
   } catch (error) { res.status(400).json({ success: false, message: error.message }); }
@@ -88,6 +124,42 @@ exports.createAPBill = async (req, res) => {
     req.body.totalAmount = (Number(req.body.amount) || 0) + (Number(req.body.taxAmount) || 0);
     req.body.outstandingAmount = req.body.totalAmount;
     const bill = await FinanceAP.create(req.body);
+
+    // Auto-post to General Ledger: Debit Expense/Purchases, Credit Accounts Payable
+    const jeNumber = `JE-${Date.now().toString().slice(-6)}`;
+    await FinanceLedger.create({
+      entryNumber: `${jeNumber}-DR`,
+      description: `AP Bill ${bill.billNumber} - Purchase Expense`,
+      accountName: 'Purchase Expense',
+      type: 'Debit',
+      amount: bill.amount,
+      referenceType: 'Bill',
+      referenceId: bill._id,
+      status: 'Posted'
+    });
+    if (bill.taxAmount > 0) {
+      await FinanceLedger.create({
+        entryNumber: `${jeNumber}-TX`,
+        description: `AP Bill ${bill.billNumber} - Input Tax`,
+        accountName: 'Input Tax Receivable',
+        type: 'Debit',
+        amount: bill.taxAmount,
+        referenceType: 'Bill',
+        referenceId: bill._id,
+        status: 'Posted'
+      });
+    }
+    await FinanceLedger.create({
+      entryNumber: `${jeNumber}-CR`,
+      description: `AP Bill ${bill.billNumber} - Accounts Payable`,
+      accountName: 'Accounts Payable',
+      type: 'Credit',
+      amount: bill.totalAmount,
+      referenceType: 'Bill',
+      referenceId: bill._id,
+      status: 'Posted'
+    });
+
     await logAudit('CREATE', 'FinanceAP', bill._id, req.user._id);
     res.status(201).json({ success: true, data: bill });
   } catch (error) { res.status(400).json({ success: false, message: error.message }); }

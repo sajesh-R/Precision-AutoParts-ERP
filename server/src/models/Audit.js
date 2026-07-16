@@ -13,7 +13,7 @@ const auditLogSchema = new mongoose.Schema({
 const loginHistorySchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   email: { type: String },
-  status: { type: String, enum: ['Success', 'Failed'] },
+  status: { type: String, enum: ['Success', 'Failed', 'Logout'] },
   ipAddress: { type: String },
   userAgent: { type: String },
 }, { timestamps: true });

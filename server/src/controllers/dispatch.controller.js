@@ -146,7 +146,11 @@ exports.updateTracking = async (req, res) => {
 
 exports.confirmDelivery = async (req, res) => {
   try {
-    const tracking = await DeliveryTracking.findById(req.params.id);
+    const tracking = await DeliveryTracking.findById(req.params.id)
+      .populate({
+        path: 'dispatchExecutionId',
+        populate: { path: 'dispatchPlanId', select: 'salesOrderId' }
+      });
     if (!tracking) return res.status(404).json({ success: false, message: 'Tracking record not found' });
 
     tracking.deliveryConfirmation = {
@@ -166,6 +170,18 @@ exports.confirmDelivery = async (req, res) => {
     });
 
     await tracking.save();
+
+    // Update Sales Order status to Dispatched on delivery confirmation
+    try {
+      const salesOrderId = tracking?.dispatchExecutionId?.dispatchPlanId?.salesOrderId;
+      if (salesOrderId) {
+        await SalesOrder.findByIdAndUpdate(salesOrderId, {
+          status: 'Dispatched',
+          'trackingStatus.dispatchStatus': 'Delivered'
+        });
+      }
+    } catch (soErr) { console.error('SO update error on delivery:', soErr.message); }
+
     await logAudit('UPDATE', 'DeliveryTracking', tracking._id, req.user._id);
     res.json({ success: true, data: tracking });
   } catch (error) { res.status(400).json({ success: false, message: error.message }); }

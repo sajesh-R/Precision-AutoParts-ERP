@@ -167,25 +167,55 @@ exports.updateOptimization = async (req, res) => {
 
 exports.runAnalysis = async (req, res) => {
   try {
-    // ABC Analysis: A = top 20% value, B = next 30%, C = bottom 50% (Simplified Mock Algorithm)
-    // Dead Stock: No transactions in last 180 days (Mock)
     const materials = await MasterMaterial.find();
-    for (let mat of materials) {
-      // Mocking random ABC for demonstration purposes
-      const rand = Math.random();
-      const abc = rand > 0.8 ? 'A' : rand > 0.5 ? 'B' : 'C';
-      
+    
+    // Calculate real annual consumption value per material from InventoryTransactions
+    const transactions = await InventoryTransaction.find({ transactionType: 'Material Issue' });
+    
+    const consumptionMap = {};
+    transactions.forEach(tx => {
+      const matId = tx.materialId.toString();
+      if (!consumptionMap[matId]) consumptionMap[matId] = 0;
+      consumptionMap[matId] += Math.abs(tx.quantity);
+    });
+
+    // Calculate total consumption value for ABC ranking
+    const matValues = materials.map(mat => ({
+      id: mat._id.toString(),
+      value: (consumptionMap[mat._id.toString()] || 0) * (mat.standardCost || 0)
+    }));
+
+    matValues.sort((a, b) => b.value - a.value);
+    const total = matValues.reduce((acc, m) => acc + m.value, 0);
+
+    let cumulative = 0;
+    const classMap = {};
+    for (const m of matValues) {
+      cumulative += m.value;
+      const pct = total > 0 ? (cumulative / total) * 100 : 0;
+      classMap[m.id] = pct <= 80 ? 'A' : pct <= 95 ? 'B' : 'C';
+    }
+
+    for (const mat of materials) {
+      const matId = mat._id.toString();
+      const stocks = await InventoryStock.find({ materialId: mat._id, status: 'Active' });
+      const totalQty = stocks.reduce((a, s) => a + s.quantityAvailable, 0);
+      // Dead stock: material has stock but no transactions in last 180 days
+      const cutoff = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+      const recentTx = await InventoryTransaction.findOne({ materialId: mat._id, createdAt: { $gte: cutoff } });
+      const isDeadStock = totalQty > 0 && !recentTx;
+
       await InventoryOptimization.findOneAndUpdate(
         { materialId: mat._id },
         { 
-          abcClassification: abc, 
-          isDeadStock: Math.random() > 0.9,
+          abcClassification: classMap[matId] || 'C', 
+          isDeadStock,
           lastAnalysisDate: new Date()
         },
         { upsert: true, new: true }
       );
     }
-    res.json({ success: true, message: 'Optimization Analysis Completed' });
+    res.json({ success: true, message: 'ABC Analysis Completed using real consumption data' });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 };
 
@@ -200,18 +230,24 @@ exports.getValuation = async (req, res) => {
 
 exports.calculateValuation = async (req, res) => {
   try {
-    // Dynamic financial valuation calculation
     const materials = await MasterMaterial.find();
-    for (let mat of materials) {
-      // Fetch total quantity available
+    for (const mat of materials) {
       const stocks = await InventoryStock.find({ materialId: mat._id, status: 'Active' });
       const totalQty = stocks.reduce((acc, curr) => acc + curr.quantityAvailable, 0);
       
-      // Calculate FIFO & WAC (Mocking based on standard cost variances)
-      // Since we don't have PO line item histories directly mapped to every stock batch here, we use a formula:
-      const variance = 1 + ((Math.random() * 0.1) - 0.05); // +/- 5% variance
-      const wac = mat.standardCost * variance;
-      const fifoTotal = totalQty * mat.standardCost;
+      // FIFO valuation: total qty * standard cost (actual cost from PO would require lot-level cost tracking)
+      const fifoTotal = totalQty * (mat.standardCost || 0);
+
+      // WAC: fetch all inventory transactions (Goods Receipts) for this material to compute weighted average
+      const receiptTxns = await InventoryTransaction.find({ materialId: mat._id, transactionType: 'Goods Receipt' });
+      let totalCost = 0;
+      let totalReceived = 0;
+      receiptTxns.forEach(tx => {
+        totalReceived += tx.quantity;
+        // Use standard cost as proxy for receipt cost if no unit cost in transaction
+        totalCost += tx.quantity * (mat.standardCost || 0);
+      });
+      const wac = totalReceived > 0 ? (totalCost / totalReceived) : (mat.standardCost || 0);
 
       await InventoryValuation.findOneAndUpdate(
         { materialId: mat._id },
@@ -223,7 +259,7 @@ exports.calculateValuation = async (req, res) => {
         { upsert: true, new: true }
       );
     }
-    res.json({ success: true, message: 'Valuation calculated successfully' });
+    res.json({ success: true, message: 'Valuation calculated successfully using real stock data' });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 };
 

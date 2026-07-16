@@ -1,39 +1,39 @@
 const express = require('express');
 const router = express.Router();
 const financeController = require('../controllers/finance.controller');
-const { protect } = require('../middlewares/auth.middleware');
+const { protect, requirePermission } = require('../middlewares/auth.middleware');
 
 router.use(protect);
 
 // AR
 router.route('/ar')
   .get(financeController.getARInvoices)
-  .post(financeController.createARInvoice);
+  .post(requirePermission('Finance', 'create'), financeController.createARInvoice);
 router.route('/ar/:id/payment')
-  .post(financeController.addARPayment);
+  .post(requirePermission('Finance', 'create'), financeController.addARPayment);
 
 // AP
 router.route('/ap')
   .get(financeController.getAPBills)
-  .post(financeController.createAPBill);
+  .post(requirePermission('Finance', 'create'), financeController.createAPBill);
 router.route('/ap/:id/payment')
-  .post(financeController.addAPPayment);
+  .post(requirePermission('Finance', 'create'), financeController.addAPPayment);
 
 // Ledger
 router.route('/ledger')
   .get(financeController.getLedgers)
-  .post(financeController.createLedgerEntry);
+  .post(requirePermission('Finance', 'create'), financeController.createLedgerEntry);
 router.route('/ledger/:id/post')
-  .put(financeController.postLedgerEntry);
+  .put(requirePermission('Finance', 'update'), financeController.postLedgerEntry);
 
 // Tax
 router.route('/tax/report')
   .get(financeController.generateTaxReport);
 router.route('/tax')
   .get(financeController.getTaxes)
-  .post(financeController.createTax);
+  .post(requirePermission('Finance', 'create'), financeController.createTax);
 router.route('/tax/:id')
-  .put(financeController.updateTax);
+  .put(requirePermission('Finance', 'update'), financeController.updateTax);
 
 // Statements & Costing
 router.route('/statements')

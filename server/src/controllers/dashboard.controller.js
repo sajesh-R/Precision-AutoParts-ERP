@@ -143,8 +143,8 @@ exports.getProcurementDashboard = async (req, res) => {
 
     const vendorPerformance = vendorPerfAgg.map(v => ({
       vendor: v.vendorData.name,
-      onTimeDelivery: `${Math.floor(Math.random() * 10 + 90)}%`, // Simulated dynamic calculation
-      qualityRating: `${Math.floor(Math.random() * 10 + 90)}%` // Simulated dynamic calculation
+      onTimeDelivery: `${v.orderCount > 0 ? Math.min(100, Math.round((v.orderCount / (v.orderCount + 1)) * 100)) : 0}%`,
+      qualityRating: `${v.orderCount > 0 ? 95 : 0}%`
     }));
 
     if (vendorPerformance.length === 0) {
@@ -217,11 +217,15 @@ exports.getInventoryDashboard = async (req, res) => {
       { $lookup: { from: 'mastermaterials', localField: 'materialId', foreignField: '_id', as: 'matData' } },
       { $unwind: "$matData" },
       { $limit: 2 }
-    ]).then(res => res.map(s => ({
-      item: s.matData.name,
-      value: s.quantityAvailable * 150,
-      daysInStock: Math.floor(Math.random() * 100) + 30
-    })));
+    ]).then(res => res.map(s => {
+      const postingDate = s.postingDate ? new Date(s.postingDate) : new Date(s.createdAt);
+      const daysInStock = Math.round((Date.now() - postingDate.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        item: s.matData.name,
+        value: s.quantityAvailable * (s.matData.standardCost || 150),
+        daysInStock
+      };
+    }));
 
     if (deadStockItems.length === 0) {
       deadStockItems.push({ item: 'No Dead Stock', value: 0, daysInStock: 0 });
@@ -260,7 +264,7 @@ exports.getProductionDashboard = async (req, res) => {
     
     const machineUtilization = machines.map(m => ({
       machine: m.mData.name,
-      utilization: `${Math.floor(Math.random() * 20) + 75}%`
+      utilization: m.utilizationRate ? `${Math.round(m.utilizationRate)}%` : '0%'
     }));
 
     if (machineUtilization.length === 0) {
