@@ -1,13 +1,23 @@
 const mongoose = require('mongoose');
+const auditPlugin = require('./plugins/auditPlugin');
 
 const uomSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true, trim: true },
   symbol: { type: String, required: true, unique: true, trim: true },
-  type: { type: String }, // e.g., Weight, Volume, Length
-  isActive: { type: Boolean, default: true },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  type: { type: String }, // Weight, Volume, Length
+  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
 }, { timestamps: true });
+uomSchema.plugin(auditPlugin);
+
+const uomConversionSchema = new mongoose.Schema({
+  fromUOM: { type: mongoose.Schema.Types.ObjectId, ref: 'UOM', required: true },
+  toUOM: { type: mongoose.Schema.Types.ObjectId, ref: 'UOM', required: true },
+  factor: { type: Number, required: true }, // e.g., 1 fromUOM = factor * toUOM
+  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
+}, { timestamps: true });
+uomConversionSchema.plugin(auditPlugin);
 
 const UOM = mongoose.model('UOM', uomSchema);
+const UOMConversion = mongoose.model('UOMConversion', uomConversionSchema);
 
-module.exports = { UOM };
+module.exports = { UOM, UOMConversion };

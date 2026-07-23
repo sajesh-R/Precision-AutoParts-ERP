@@ -1,10 +1,11 @@
+const { handleError } = require('../utils/errorHandler');
 const GoodsReceipt = require('../models/GoodsReceipt');
 const QualityInspection = require('../models/QualityInspection');
 const InventoryStock = require('../models/InventoryStock');
 const InventoryTransaction = require('../models/InventoryTransaction');
 const PurchaseOrder = require('../models/PurchaseOrder');
 const { AuditLog } = require('../models/Audit');
-
+const mongoose = require('mongoose');
 const logAudit = async (action, entityType, entityId, userId, changes) => {
   try {
     await AuditLog.create({
@@ -21,13 +22,20 @@ const logAudit = async (action, entityType, entityId, userId, changes) => {
 
 exports.getAllGRNs = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const grns = await GoodsReceipt.find()
       .populate('purchaseOrderId', 'poNumber')
       .populate('vendorId', 'name code')
       .populate('materialId', 'name code')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: grns });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await GoodsReceipt.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: grns });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createGRN = async (req, res) => {
@@ -69,13 +77,17 @@ exports.createGRN = async (req, res) => {
 
     await logAudit('CREATE', 'GoodsReceipt', newGrn._id, req.user._id);
     res.status(201).json({ success: true, data: newGrn });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Quality Inspection =================
 
 exports.getAllInspections = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const inspections = await QualityInspection.find()
       .populate({
         path: 'grnId',
@@ -85,9 +97,12 @@ exports.getAllInspections = async (req, res) => {
           { path: 'vendorId', select: 'name code' }
         ]
       })
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: inspections });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await QualityInspection.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: inspections });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateInspection = async (req, res) => {
@@ -107,54 +122,74 @@ exports.updateInspection = async (req, res) => {
 
     await logAudit('UPDATE', 'QualityInspection', insp._id, req.user._id);
     res.json({ success: true, data: insp });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Inventory Posting =================
 
 exports.getAllInventoryStocks = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const stocks = await InventoryStock.find()
       .populate('materialId', 'name code')
       .populate('warehouseId', 'name code')
       .populate('sourceGrnId', 'grnNumber')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: stocks });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await InventoryStock.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: stocks });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.postToInventory = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { inspectionId, warehouseId } = req.body;
     
-    const insp = await QualityInspection.findById(inspectionId).populate('grnId');
-    if (!insp) return res.status(404).json({ success: false, message: 'Inspection not found' });
+    const insp = await QualityInspection.findById(inspectionId).populate('grnId').session(session);
+    if (!insp) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, message: 'Inspection not found' });
+    }
     if (insp.inspectionStatus !== 'Completed') {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: 'Inspection must be Completed to post to inventory' });
     }
     if (insp.acceptedQuantity <= 0) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: 'No accepted quantity to post' });
     }
 
     // Prevent double-posting: check if this inspection was already posted
-    const existingStock = await InventoryStock.findOne({ sourceGrnId: insp.grnId._id });
+    const existingStock = await InventoryStock.findOne({ sourceGrnId: insp.grnId._id }).session(session);
     if (existingStock) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: 'This GRN has already been posted to inventory' });
     }
 
     // Generate Batch and Create Stock Record
     const batchNumber = `BATCH-${Date.now().toString().slice(-6)}`;
-    const newStock = await InventoryStock.create({
+    const newStockArray = await InventoryStock.create([{
       batchNumber,
       materialId: insp.grnId.materialId,
       warehouseId,
       quantityAvailable: insp.acceptedQuantity,
       sourceGrnId: insp.grnId._id,
       status: 'Active'
-    });
+    }], { session });
+    const newStock = newStockArray[0];
 
     // Create an InventoryTransaction record for this goods receipt posting
-    await InventoryTransaction.create({
+    await InventoryTransaction.create([{
       transactionNumber: `TXN-${Date.now().toString().slice(-6)}`,
       transactionType: 'Goods Receipt',
       materialId: insp.grnId.materialId,
@@ -163,17 +198,23 @@ exports.postToInventory = async (req, res) => {
       quantity: insp.acceptedQuantity,
       referenceDocument: insp.grnId.grnNumber,
       notes: `Goods receipt posted from GRN ${insp.grnId.grnNumber}`
-    });
+    }], { session });
 
     // Mark GRN as Posted
-    await GoodsReceipt.findByIdAndUpdate(insp.grnId._id, { status: 'Posted' });
+    await GoodsReceipt.findByIdAndUpdate(insp.grnId._id, { status: 'Posted' }, { session });
 
     // Update PO delivery status to Delivered
     if (insp.grnId.purchaseOrderId) {
-      await PurchaseOrder.findByIdAndUpdate(insp.grnId.purchaseOrderId, { deliveryStatus: 'Delivered' });
+      await PurchaseOrder.findByIdAndUpdate(insp.grnId.purchaseOrderId, { deliveryStatus: 'Delivered' }, { session });
     }
 
     await logAudit('INVENTORY_POST', 'InventoryStock', newStock._id, req.user._id, { batchNumber });
+    await session.commitTransaction();
+    session.endSession();
     res.status(201).json({ success: true, data: newStock });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    handleError(res, error);
+  }
 };

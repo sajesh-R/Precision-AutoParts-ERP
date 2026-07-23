@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const MaintenancePreventive = require('../models/MaintenancePreventive');
 const MaintenanceBreakdown = require('../models/MaintenanceBreakdown');
 const MaintenanceSparePart = require('../models/MaintenanceSparePart');
@@ -24,7 +25,7 @@ exports.getAllPreventive = async (req, res) => {
       .populate('machineId', 'name code')
       .sort({ scheduledDate: 1 });
     res.json({ success: true, data: pm });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createPreventive = async (req, res) => {
@@ -33,7 +34,7 @@ exports.createPreventive = async (req, res) => {
     const pm = await MaintenancePreventive.create(req.body);
     await logAudit('CREATE', 'MaintenancePreventive', pm._id, req.user._id);
     res.status(201).json({ success: true, data: pm });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updatePreventive = async (req, res) => {
@@ -45,7 +46,7 @@ exports.updatePreventive = async (req, res) => {
     if (!pm) return res.status(404).json({ success: false, message: 'Not found' });
     await logAudit('UPDATE', 'MaintenancePreventive', pm._id, req.user._id);
     res.json({ success: true, data: pm });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Breakdown Maintenance =================
@@ -56,7 +57,7 @@ exports.getAllBreakdowns = async (req, res) => {
       .populate('machineId', 'name code')
       .sort({ reportedDate: -1 });
     res.json({ success: true, data: bd });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.reportBreakdown = async (req, res) => {
@@ -65,7 +66,7 @@ exports.reportBreakdown = async (req, res) => {
     const bd = await MaintenanceBreakdown.create(req.body);
     await logAudit('CREATE', 'MaintenanceBreakdown', bd._id, req.user._id);
     res.status(201).json({ success: true, data: bd });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateBreakdown = async (req, res) => {
@@ -83,7 +84,7 @@ exports.updateBreakdown = async (req, res) => {
     if (!bd) return res.status(404).json({ success: false, message: 'Not found' });
     await logAudit('UPDATE', 'MaintenanceBreakdown', bd._id, req.user._id);
     res.json({ success: true, data: bd });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -95,7 +96,7 @@ exports.getAllSpareParts = async (req, res) => {
       .populate('materialId', 'name code standardCost')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: parts });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.recordSparePartTransaction = async (req, res) => {
@@ -115,7 +116,7 @@ exports.recordSparePartTransaction = async (req, res) => {
     const spt = await MaintenanceSparePart.create(req.body);
     await logAudit('CREATE', 'MaintenanceSparePart', spt._id, req.user._id);
     res.status(201).json({ success: true, data: spt });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getSparePartInventory = async (req, res) => {
@@ -143,7 +144,7 @@ exports.getSparePartInventory = async (req, res) => {
     });
 
     res.json({ success: true, data: Object.values(inventory) });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -216,5 +217,5 @@ exports.getAnalytics = async (req, res) => {
         totalMaintenanceCost
       }
     });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

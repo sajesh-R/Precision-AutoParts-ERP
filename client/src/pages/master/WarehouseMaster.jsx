@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, CheckCircle, XCircle, Map, Target, Layers, LayoutGrid } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, Map, Target, Layers, LayoutGrid, Building } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 
 const WarehouseMaster = () => {
-  const [activeTab, setActiveTab] = useState('locations');
+  const [activeTab, setActiveTab] = useState('warehouses');
   const [data, setData] = useState([]);
+  
+  // Reference data
+  const [plants, setPlants] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [zones, setZones] = useState([]);
   const [racks, setRacks] = useState([]);
-  const [loading, setLoading] = useState(false);
   
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({});
   const [editingId, setEditingId] = useState(null);
@@ -23,9 +27,17 @@ const WarehouseMaster = () => {
 
   const fetchDependencies = async () => {
     try {
-      if (activeTab === 'locations' || activeTab === 'zones') {
-        const res = await axios.get('/company/warehouses');
+      if (activeTab === 'warehouses') {
+        const res = await axios.get('/company/plants');
+        setPlants(res.data.data);
+      }
+      if (activeTab === 'locations') {
+        const res = await axios.get('/master/warehouse');
         setWarehouses(res.data.data);
+      }
+      if (activeTab === 'zones') {
+        const res = await axios.get('/master/storagelocation');
+        setLocations(res.data.data);
       }
       if (activeTab === 'racks') {
         const res = await axios.get('/master/storagezone');
@@ -41,12 +53,7 @@ const WarehouseMaster = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      let endpoint = '';
-      if (activeTab === 'locations') endpoint = '/master/storagelocation';
-      if (activeTab === 'zones') endpoint = '/master/storagezone';
-      if (activeTab === 'racks') endpoint = '/master/rack';
-      if (activeTab === 'bins') endpoint = '/master/bin';
-      
+      let endpoint = `/master/${activeTab === 'locations' ? 'storagelocation' : activeTab === 'zones' ? 'storagezone' : activeTab.slice(0, -1)}`;
       const res = await axios.get(endpoint);
       setData(res.data.data);
     } catch (err) { console.error(err); }
@@ -56,11 +63,7 @@ const WarehouseMaster = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      let endpoint = '';
-      if (activeTab === 'locations') endpoint = '/master/storagelocation';
-      if (activeTab === 'zones') endpoint = '/master/storagezone';
-      if (activeTab === 'racks') endpoint = '/master/rack';
-      if (activeTab === 'bins') endpoint = '/master/bin';
+      let endpoint = `/master/${activeTab === 'locations' ? 'storagelocation' : activeTab === 'zones' ? 'storagezone' : activeTab.slice(0, -1)}`;
 
       if (editingId) {
         await axios.put(`${endpoint}/${editingId}`, formData);
@@ -79,8 +82,10 @@ const WarehouseMaster = () => {
 
   const handleEdit = (row) => {
     setFormData({ 
-      ...row, 
+      ...row,
+      plantId: row.plantId?._id || row.plantId,
       warehouseId: row.warehouseId?._id || row.warehouseId,
+      storageLocationId: row.storageLocationId?._id || row.storageLocationId,
       zoneId: row.zoneId?._id || row.zoneId,
       rackId: row.rackId?._id || row.rackId
     });
@@ -89,19 +94,17 @@ const WarehouseMaster = () => {
   };
 
   const toggleStatus = async (row) => {
+    const currentActive = row.status === 'Active';
+    if (currentActive && !window.confirm('Are you sure you want to deactivate this record?')) return;
     try {
-      let endpoint = '';
-      if (activeTab === 'locations') endpoint = '/master/storagelocation';
-      if (activeTab === 'zones') endpoint = '/master/storagezone';
-      if (activeTab === 'racks') endpoint = '/master/rack';
-      if (activeTab === 'bins') endpoint = '/master/bin';
-      
-      await axios.put(`${endpoint}/${row._id}`, { isActive: !row.isActive });
+      let endpoint = `/master/${activeTab === 'locations' ? 'storagelocation' : activeTab === 'zones' ? 'storagezone' : activeTab.slice(0, -1)}`;
+      await axios.put(`${endpoint}/${row._id}`, { status: currentActive ? 'Inactive' : 'Active' });
       fetchData();
     } catch (err) { alert('Error updating status'); }
   };
 
   const tabs = [
+    { id: 'warehouses', label: 'Warehouses', icon: <Building size={18} /> },
     { id: 'locations', label: 'Storage Locations', icon: <Map size={18} /> },
     { id: 'zones', label: 'Storage Zones', icon: <Target size={18} /> },
     { id: 'racks', label: 'Racks', icon: <Layers size={18} /> },
@@ -114,19 +117,19 @@ const WarehouseMaster = () => {
       { header: 'Code', accessor: 'code' }
     ];
 
-    if (activeTab === 'locations' || activeTab === 'zones') {
-      baseCols.push({ header: 'Warehouse', render: (row) => row.warehouseId?.name || '-' });
-    }
-    if (activeTab === 'racks') {
-      baseCols.push({ header: 'Zone', render: (row) => row.zoneId?.name || '-' });
-    }
-    if (activeTab === 'bins') {
-      baseCols.push({ header: 'Rack', render: (row) => row.rackId?.name || '-' });
-    }
+    if (activeTab === 'warehouses') baseCols.push({ header: 'Plant', render: (row) => row.plantId?.name || '-' });
+    if (activeTab === 'locations') baseCols.push({ header: 'Warehouse', render: (row) => row.warehouseId?.name || '-' });
+    if (activeTab === 'zones') baseCols.push({ header: 'Storage Location', render: (row) => row.storageLocationId?.name || '-' });
+    if (activeTab === 'racks') baseCols.push({ header: 'Zone', render: (row) => row.zoneId?.name || '-' });
+    if (activeTab === 'bins') baseCols.push({ header: 'Rack', render: (row) => row.rackId?.name || '-' });
 
     baseCols.push({ header: 'Status', render: (row) => (
-      <span style={{ color: row.isActive ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
-        {row.isActive ? 'Active' : 'Inactive'}
+      <span style={{ 
+        padding: '0.25rem 0.5rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 600,
+        backgroundColor: row.status === 'Active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+        color: row.status === 'Active' ? 'var(--accent-success)' : 'var(--accent-danger)' 
+      }}>
+        {row.status === 'Active' ? 'Active' : 'Inactive'}
       </span>
     )});
 
@@ -142,6 +145,7 @@ const WarehouseMaster = () => {
         <button className="btn btn-primary" onClick={() => {
           let codePrefix = '';
           switch (activeTab) {
+            case 'warehouses': codePrefix = 'WRHS-'; break;
             case 'locations': codePrefix = 'LOC-'; break;
             case 'zones': codePrefix = 'ZN-'; break;
             case 'racks': codePrefix = 'RCK-'; break;
@@ -168,7 +172,7 @@ const WarehouseMaster = () => {
                 color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)',
                 fontWeight: activeTab === tab.id ? 600 : 500,
                 backgroundColor: activeTab === tab.id ? 'var(--bg-primary)' : 'transparent',
-                fontSize: '13px', cursor: 'pointer'
+                fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap'
               }}
             >
               {tab.icon} {tab.label}
@@ -185,17 +189,17 @@ const WarehouseMaster = () => {
             customActions={(row) => (
               <button 
                 onClick={() => toggleStatus(row)} 
-                title={row.isActive ? "Deactivate" : "Activate"} 
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: row.isActive ? 'var(--accent-danger)' : 'var(--accent-success)' }}
+                title={row.status === 'Active' ? "Deactivate" : "Activate"} 
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: row.status === 'Active' ? 'var(--accent-danger)' : 'var(--accent-success)' }}
               >
-                {row.isActive ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                {row.status === 'Active' ? <XCircle size={14} /> : <CheckCircle size={14} />}
               </button>
             )}
           />
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingId ? 'Edit' : 'Create'} ${activeTab.slice(0, -1)}`}>
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingId ? 'Edit' : 'Create'} ${activeTab.replace('locations', 'storage location').replace('zones', 'storage zone').replace(/s$/, '')}`}>
         <form onSubmit={handleSave}>
           <div className="input-group">
             <label className="input-label">Name</label>
@@ -206,12 +210,32 @@ const WarehouseMaster = () => {
             <input type="text" className="input-field" required readOnly value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
           </div>
           
-          {(activeTab === 'locations' || activeTab === 'zones') && (
+          {activeTab === 'warehouses' && (
+            <div className="input-group">
+              <label className="input-label">Select Plant</label>
+              <select className="input-field" required value={formData.plantId || ''} onChange={e => setFormData({...formData, plantId: e.target.value})}>
+                <option value="" disabled>Select Plant</option>
+                {plants.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {activeTab === 'locations' && (
             <div className="input-group">
               <label className="input-label">Select Warehouse</label>
               <select className="input-field" required value={formData.warehouseId || ''} onChange={e => setFormData({...formData, warehouseId: e.target.value})}>
                 <option value="" disabled>Select Warehouse</option>
                 {warehouses.map(w => <option key={w._id} value={w._id}>{w.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {activeTab === 'zones' && (
+            <div className="input-group">
+              <label className="input-label">Select Storage Location</label>
+              <select className="input-field" required value={formData.storageLocationId || ''} onChange={e => setFormData({...formData, storageLocationId: e.target.value})}>
+                <option value="" disabled>Select Storage Location</option>
+                {locations.map(l => <option key={l._id} value={l._id}>{l.name}</option>)}
               </select>
             </div>
           )}

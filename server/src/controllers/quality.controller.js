@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const QualityInspection = require('../models/QualityInspection');
 const QualityParameter = require('../models/QualityParameter');
 const QualityNonConformance = require('../models/QualityNonConformance');
@@ -26,7 +27,7 @@ exports.getAllInspections = async (req, res) => {
       .populate('vendorId', 'vendorName vendorCode')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: inspections });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.recordInspection = async (req, res) => {
@@ -42,7 +43,7 @@ exports.recordInspection = async (req, res) => {
     const ins = await QualityInspection.create(req.body);
     await logAudit('CREATE', 'QualityInspection', ins._id, req.user._id);
     res.status(201).json({ success: true, data: ins });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateInspection = async (req, res) => {
@@ -55,7 +56,7 @@ exports.updateInspection = async (req, res) => {
     if (!ins) return res.status(404).json({ success: false, message: 'Not found' });
     await logAudit('UPDATE', 'QualityInspection', ins._id, req.user._id);
     res.json({ success: true, data: ins });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.approveProductRelease = async (req, res) => {
@@ -67,7 +68,7 @@ exports.approveProductRelease = async (req, res) => {
     ins.productReleaseStatus = 'Approved';
     await ins.save();
     res.json({ success: true, data: ins });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -79,7 +80,7 @@ exports.getAllParameters = async (req, res) => {
       .populate('materialId', 'name code')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: params });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createParameter = async (req, res) => {
@@ -87,7 +88,7 @@ exports.createParameter = async (req, res) => {
     const param = await QualityParameter.create(req.body);
     await logAudit('CREATE', 'QualityParameter', param._id, req.user._id);
     res.status(201).json({ success: true, data: param });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.recordMeasurement = async (req, res) => {
@@ -107,7 +108,7 @@ exports.recordMeasurement = async (req, res) => {
 
     await param.save();
     res.json({ success: true, data: param, pass: isPass });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -119,7 +120,7 @@ exports.getAllNCRs = async (req, res) => {
       .populate({ path: 'inspectionId', select: 'inspectionNumber type referenceId' })
       .sort({ createdAt: -1 });
     res.json({ success: true, data: ncrs });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.recordNCR = async (req, res) => {
@@ -128,7 +129,7 @@ exports.recordNCR = async (req, res) => {
     const ncr = await QualityNonConformance.create(req.body);
     await logAudit('CREATE', 'QualityNonConformance', ncr._id, req.user._id);
     res.status(201).json({ success: true, data: ncr });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateNCR = async (req, res) => {
@@ -137,7 +138,7 @@ exports.updateNCR = async (req, res) => {
     if (!ncr) return res.status(404).json({ success: false, message: 'Not found' });
     await logAudit('UPDATE', 'QualityNonConformance', ncr._id, req.user._id);
     res.json({ success: true, data: ncr });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -186,5 +187,5 @@ exports.getAnalytics = async (req, res) => {
         vendorAverages
       }
     });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

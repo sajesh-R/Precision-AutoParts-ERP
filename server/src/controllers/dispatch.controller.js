@@ -1,9 +1,12 @@
+const { handleError } = require('../utils/errorHandler');
 const DispatchPlan = require('../models/DispatchPlan');
 const DispatchExecution = require('../models/DispatchExecution');
 const DeliveryTracking = require('../models/DeliveryTracking');
 const SalesOrder = require('../models/SalesOrder');
+const InventoryStock = require('../models/InventoryStock');
+const InventoryTransaction = require('../models/InventoryTransaction');
 const { AuditLog } = require('../models/Audit');
-
+const mongoose = require('mongoose');
 const logAudit = async (action, entityType, entityId, userId, changes) => {
   try {
     await AuditLog.create({
@@ -20,11 +23,18 @@ const logAudit = async (action, entityType, entityId, userId, changes) => {
 
 exports.getAllPlans = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+    
     const plans = await DispatchPlan.find()
       .populate('salesOrderId', 'orderNumber customerName expectedDeliveryDate')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: plans });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await DispatchPlan.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: plans });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createPlan = async (req, res) => {
@@ -33,7 +43,7 @@ exports.createPlan = async (req, res) => {
     const plan = await DispatchPlan.create(req.body);
     await logAudit('CREATE', 'DispatchPlan', plan._id, req.user._id);
     res.status(201).json({ success: true, data: plan });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updatePlan = async (req, res) => {
@@ -52,21 +62,28 @@ exports.updatePlan = async (req, res) => {
     
     await logAudit('UPDATE', 'DispatchPlan', plan._id, req.user._id);
     res.json({ success: true, data: plan });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Dispatch Execution =================
 
 exports.getAllExecutions = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const executions = await DispatchExecution.find()
       .populate({
         path: 'dispatchPlanId',
         populate: { path: 'salesOrderId', select: 'orderNumber customerName' }
       })
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: executions });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await DispatchExecution.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: executions });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.recordExecution = async (req, res) => {
@@ -106,13 +123,17 @@ exports.recordExecution = async (req, res) => {
     }
 
     res.json({ success: true, data: execution });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Delivery Tracking =================
 
 exports.getAllTrackings = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const trackings = await DeliveryTracking.find()
       .populate({
         path: 'dispatchExecutionId',
@@ -121,9 +142,12 @@ exports.getAllTrackings = async (req, res) => {
           populate: { path: 'salesOrderId', select: 'orderNumber customerName' } 
         }
       })
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: trackings });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await DeliveryTracking.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: trackings });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateTracking = async (req, res) => {
@@ -141,17 +165,23 @@ exports.updateTracking = async (req, res) => {
     await tracking.save();
     await logAudit('UPDATE', 'DeliveryTracking', tracking._id, req.user._id);
     res.json({ success: true, data: tracking });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.confirmDelivery = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const tracking = await DeliveryTracking.findById(req.params.id)
       .populate({
         path: 'dispatchExecutionId',
         populate: { path: 'dispatchPlanId', select: 'salesOrderId' }
-      });
-    if (!tracking) return res.status(404).json({ success: false, message: 'Tracking record not found' });
+      }).session(session);
+    if (!tracking) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, message: 'Tracking record not found' });
+    }
 
     tracking.deliveryConfirmation = {
       isDelivered: true,
@@ -169,20 +199,53 @@ exports.confirmDelivery = async (req, res) => {
       remarks: 'Delivery Confirmed'
     });
 
-    await tracking.save();
+    await tracking.save({ session });
 
     // Update Sales Order status to Dispatched on delivery confirmation
-    try {
-      const salesOrderId = tracking?.dispatchExecutionId?.dispatchPlanId?.salesOrderId;
-      if (salesOrderId) {
-        await SalesOrder.findByIdAndUpdate(salesOrderId, {
-          status: 'Dispatched',
-          'trackingStatus.dispatchStatus': 'Delivered'
-        });
+    const salesOrderId = tracking?.dispatchExecutionId?.dispatchPlanId?.salesOrderId;
+    if (salesOrderId) {
+      const so = await SalesOrder.findByIdAndUpdate(salesOrderId, {
+        status: 'Dispatched',
+        'trackingStatus.dispatchStatus': 'Delivered'
+      }, { new: true, session });
+      
+      if (so && so.items && so.items.length > 0) {
+        for (const item of so.items) {
+          let remainingQty = item.quantity;
+          const stocks = await InventoryStock.find({ materialId: item.productId, quantityAvailable: { $gt: 0 } })
+            .sort({ postingDate: 1 }).session(session);
+            
+          for (let stock of stocks) {
+            if (remainingQty <= 0) break;
+            const deduct = Math.min(stock.quantityAvailable, remainingQty);
+            stock.quantityAvailable -= deduct;
+            remainingQty -= deduct;
+            await stock.save({ session });
+            
+            await InventoryTransaction.create([{
+              materialId: item.productId,
+              transactionType: 'Material Issue',
+              quantity: deduct,
+              referenceId: so._id,
+              referenceType: 'SalesOrder',
+              notes: 'Finished Goods Dispatch',
+              performedBy: req.user._id
+            }], { session });
+          }
+          if (remainingQty > 0) {
+            throw new Error(`Insufficient stock for dispatch of product ID ${item.productId}`);
+          }
+        }
       }
-    } catch (soErr) { console.error('SO update error on delivery:', soErr.message); }
+    }
 
     await logAudit('UPDATE', 'DeliveryTracking', tracking._id, req.user._id);
+    await session.commitTransaction();
+    session.endSession();
     res.json({ success: true, data: tracking });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    handleError(res, error);
+  }
 };

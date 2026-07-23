@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const mongoose = require('mongoose');
 const FinanceAR = require('../models/FinanceAR');
 const FinanceAP = require('../models/FinanceAP');
@@ -73,7 +74,7 @@ exports.getCEODashboard = async (req, res) => {
       productionEfficiency: { current: `${efficiency.toFixed(1)}%`, target: '90%', trend: efficiency > 0 ? '+1.5%' : '0%' }
     };
     res.json({ success: true, data });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getSalesDashboard = async (req, res) => {
@@ -123,7 +124,7 @@ exports.getSalesDashboard = async (req, res) => {
       customerPerformance
     };
     res.json({ success: true, data });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getProcurementDashboard = async (req, res) => {
@@ -176,7 +177,7 @@ exports.getProcurementDashboard = async (req, res) => {
       materialShortages
     };
     res.json({ success: true, data });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getInventoryDashboard = async (req, res) => {
@@ -237,7 +238,7 @@ exports.getInventoryDashboard = async (req, res) => {
       deadStockItems
     };
     res.json({ success: true, data });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getProductionDashboard = async (req, res) => {
@@ -293,7 +294,7 @@ exports.getProductionDashboard = async (req, res) => {
       downtime: { totalHours: Math.round(plannedDown + unplannedDown), planned: Math.round(plannedDown), unplanned: Math.round(unplannedDown) }
     };
     res.json({ success: true, data });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getQualityDashboard = async (req, res) => {
@@ -331,7 +332,7 @@ exports.getQualityDashboard = async (req, res) => {
       capaStatus: { open: openCapa, inProgress: ipCapa, closed: closedCapa }
     };
     res.json({ success: true, data });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getMaintenanceDashboard = async (req, res) => {
@@ -366,7 +367,7 @@ exports.getMaintenanceDashboard = async (req, res) => {
       downtimeTrends: { mtbf: `${Math.round(mtbf)} Hours`, mttr: `${mttr.toFixed(1)} Hours` }
     };
     res.json({ success: true, data });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 const User = require('../models/User');
@@ -413,6 +414,6 @@ exports.getSystemStats = async (req, res) => {
 
     res.json({ success: true, data });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };

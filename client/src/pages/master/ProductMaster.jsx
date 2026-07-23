@@ -8,6 +8,8 @@ const ProductMaster = () => {
   const [activeTab, setActiveTab] = useState('products');
   const [data, setData] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [uoms, setUoms] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,13 +18,31 @@ const ProductMaster = () => {
 
   useEffect(() => {
     fetchData();
-    if (activeTab === 'products') fetchCategories();
+    if (activeTab === 'products') {
+      fetchCategories();
+      fetchUoms();
+      fetchWarehouses();
+    }
   }, [activeTab]);
 
   const fetchCategories = async () => {
     try {
       const res = await axios.get('/master/productcategory');
       setCategories(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchUoms = async () => {
+    try {
+      const res = await axios.get('/master/uom');
+      setUoms(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const res = await axios.get('/master/warehouse');
+      setWarehouses(res.data.data);
     } catch (err) { console.error(err); }
   };
 
@@ -57,12 +77,18 @@ const ProductMaster = () => {
   };
 
   const handleEdit = (row) => {
-    setFormData({ ...row, category: row.category?._id || row.category });
+    setFormData({ 
+      ...row, 
+      categoryId: row.categoryId?._id || row.categoryId,
+      uomId: row.uomId?._id || row.uomId,
+      defaultWarehouseId: row.defaultWarehouseId?._id || row.defaultWarehouseId
+    });
     setEditingId(row._id);
     setIsModalOpen(true);
   };
 
   const toggleStatus = async (row) => {
+    if (row.isActive && !window.confirm('Are you sure you want to deactivate this record?')) return;
     if (activeTab === 'categories') {
       try {
         await axios.put(`/master/productcategory/${row._id}`, { isActive: !row.isActive });
@@ -91,7 +117,7 @@ const ProductMaster = () => {
 
     if (activeTab === 'products') {
       baseCols.push({ header: 'Code', accessor: 'code' });
-      baseCols.push({ header: 'Category', render: (row) => row.category?.name || '-' });
+      baseCols.push({ header: 'Category', render: (row) => row.categoryId?.name || '-' });
       baseCols.push({ header: 'Revision', accessor: 'currentRevision' });
       baseCols.push({ header: 'Lifecycle Status', render: (row) => (
         <span style={{ 
@@ -179,7 +205,7 @@ const ProductMaster = () => {
               </div>
               <div className="input-group">
                 <label className="input-label">Category</label>
-                <select className="input-field" required value={formData.category || ''} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <select className="input-field" required value={formData.categoryId || ''} onChange={e => setFormData({...formData, categoryId: e.target.value})}>
                   <option value="" disabled>Select Category</option>
                   {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                 </select>
@@ -188,6 +214,13 @@ const ProductMaster = () => {
                     * Please create a Product Category first.
                   </p>
                 )}
+              </div>
+              <div className="input-group">
+                <label className="input-label">UOM (Unit of Measure)</label>
+                <select className="input-field" required value={formData.uomId || ''} onChange={e => setFormData({...formData, uomId: e.target.value})}>
+                  <option value="" disabled>Select UOM</option>
+                  {uoms.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
+                </select>
               </div>
               <div className="input-group">
                 <label className="input-label">Lifecycle Status</label>
@@ -201,6 +234,29 @@ const ProductMaster = () => {
               <div className="input-group">
                 <label className="input-label">Revision</label>
                 <input type="text" className="input-field" value={formData.currentRevision || '1.0'} onChange={e => setFormData({...formData, currentRevision: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">HSN Code</label>
+                <input type="text" className="input-field" value={formData.hsnCode || ''} onChange={e => setFormData({...formData, hsnCode: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Weight</label>
+                <input type="number" step="any" className="input-field" value={formData.weight || ''} onChange={e => setFormData({...formData, weight: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Standard Cost</label>
+                <input type="number" step="any" className="input-field" value={formData.standardCost || ''} onChange={e => setFormData({...formData, standardCost: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Selling Price</label>
+                <input type="number" step="any" className="input-field" value={formData.sellingPrice || ''} onChange={e => setFormData({...formData, sellingPrice: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Default Warehouse</label>
+                <select className="input-field" value={formData.defaultWarehouseId || ''} onChange={e => setFormData({...formData, defaultWarehouseId: e.target.value})}>
+                  <option value="">Select Warehouse (Optional)</option>
+                  {warehouses.map(w => <option key={w._id} value={w._id}>{w.name}</option>)}
+                </select>
               </div>
             </>
           )}

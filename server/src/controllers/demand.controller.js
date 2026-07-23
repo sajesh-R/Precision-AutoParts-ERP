@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const DemandForecast = require('../models/DemandForecast');
 const DemandConsolidation = require('../models/DemandConsolidation');
 const SalesOrder = require('../models/SalesOrder');
@@ -24,7 +25,7 @@ exports.getAllForecasts = async (req, res) => {
       .populate('customerId', 'name code')
       .sort({ updatedAt: -1 });
     res.json({ success: true, data: forecasts });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createForecast = async (req, res) => {
@@ -32,7 +33,7 @@ exports.createForecast = async (req, res) => {
     const newForecast = await DemandForecast.create(req.body);
     await logAudit('CREATE', 'DemandForecast', newForecast._id, req.user._id);
     res.status(201).json({ success: true, data: newForecast });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateForecast = async (req, res) => {
@@ -40,7 +41,7 @@ exports.updateForecast = async (req, res) => {
     const updated = await DemandForecast.findByIdAndUpdate(req.params.id, req.body, { new: true });
     await logAudit('UPDATE', 'DemandForecast', updated._id, req.user._id);
     res.json({ success: true, data: updated });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -79,7 +80,7 @@ exports.getHistoricalAnalysis = async (req, res) => {
     ]);
 
     res.json({ success: true, data: historicalData });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -91,7 +92,7 @@ exports.getAllConsolidations = async (req, res) => {
       .populate('productId', 'name code')
       .sort({ updatedAt: -1 });
     res.json({ success: true, data: consolidations });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createConsolidation = async (req, res) => {
@@ -99,7 +100,7 @@ exports.createConsolidation = async (req, res) => {
     const newConsolidation = await DemandConsolidation.create(req.body);
     await logAudit('CREATE', 'DemandConsolidation', newConsolidation._id, req.user._id);
     res.status(201).json({ success: true, data: newConsolidation });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateConsolidation = async (req, res) => {
@@ -113,7 +114,7 @@ exports.updateConsolidation = async (req, res) => {
 
     await logAudit('UPDATE', 'DemandConsolidation', consolidation._id, req.user._id);
     res.json({ success: true, data: consolidation });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.generateConsolidation = async (req, res) => {
@@ -181,5 +182,5 @@ exports.generateConsolidation = async (req, res) => {
     }
 
     res.json({ success: true, message: `Consolidation generated for ${period}`, data: results });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const { ApprovalRequest, ApprovalConfig } = require('../models/Approval');
 const User = require('../models/User');
 
@@ -29,7 +30,7 @@ exports.getPendingApprovals = async (req, res) => {
 
     res.status(200).json({ success: true, count: actionableRequests.length, data: actionableRequests });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -94,7 +95,7 @@ exports.approveRequest = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Final approval granted. Record created.', data: approval });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -124,7 +125,7 @@ exports.rejectRequest = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Request rejected.', data: approval });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -136,7 +137,7 @@ exports.getConfigs = async (req, res) => {
     const configs = await ApprovalConfig.find().populate('levels.roleId', 'name description');
     res.status(200).json({ success: true, count: configs.length, data: configs });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -145,10 +146,24 @@ exports.getConfigs = async (req, res) => {
 // @access  Private/Admin
 exports.createConfig = async (req, res) => {
   try {
+    const existing = await ApprovalConfig.findOne({ module: req.body.module, action: req.body.action });
+    if (existing) {
+      return res.status(400).json({ success: false, message: `An approval rule for ${req.body.module} (${req.body.action}) already exists.` });
+    }
+
+    // Check if any of the roles in this new config are already assigned to another config
+    if (req.body.levels && req.body.levels.length > 0) {
+      const selectedRoles = req.body.levels.map(l => l.roleId);
+      const existingConfigsWithRoles = await ApprovalConfig.find({ 'levels.roleId': { $in: selectedRoles } });
+      if (existingConfigsWithRoles.length > 0) {
+        return res.status(400).json({ success: false, message: 'One or more selected roles are already assigned to an approval rule. A role can only be assigned to one approval rule in the system.' });
+      }
+    }
+
     const config = await ApprovalConfig.create(req.body);
     res.status(201).json({ success: true, data: config });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -157,13 +172,32 @@ exports.createConfig = async (req, res) => {
 // @access  Private/Admin
 exports.updateConfig = async (req, res) => {
   try {
+    if (req.body.module && req.body.action) {
+      const existing = await ApprovalConfig.findOne({ module: req.body.module, action: req.body.action, _id: { $ne: req.params.id } });
+      if (existing) {
+        return res.status(400).json({ success: false, message: `An approval rule for ${req.body.module} (${req.body.action}) already exists.` });
+      }
+    }
+
+    // Check if any of the roles in this config are already assigned to another config
+    if (req.body.levels && req.body.levels.length > 0) {
+      const selectedRoles = req.body.levels.map(l => l.roleId);
+      const existingConfigsWithRoles = await ApprovalConfig.find({ 
+        _id: { $ne: req.params.id },
+        'levels.roleId': { $in: selectedRoles } 
+      });
+      if (existingConfigsWithRoles.length > 0) {
+        return res.status(400).json({ success: false, message: 'One or more selected roles are already assigned to another approval rule. A role can only be assigned to one approval rule in the system.' });
+      }
+    }
+
     const config = await ApprovalConfig.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!config) {
       return res.status(404).json({ success: false, message: 'Configuration not found' });
     }
     res.status(200).json({ success: true, data: config });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -179,6 +213,6 @@ exports.deleteConfig = async (req, res) => {
     await config.deleteOne();
     res.status(200).json({ success: true, message: 'Configuration deleted' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };

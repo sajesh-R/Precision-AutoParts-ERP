@@ -1,6 +1,8 @@
+const { handleError } = require('../utils/errorHandler');
 const SalesInquiry = require('../models/SalesInquiry');
 const SalesQuotation = require('../models/SalesQuotation');
 const SalesOrder = require('../models/SalesOrder');
+const InventoryStock = require('../models/InventoryStock');
 const { AuditLog } = require('../models/Audit');
 
 const logAudit = async (action, entityType, entityId, userId, changes) => {
@@ -19,9 +21,16 @@ const logAudit = async (action, entityType, entityId, userId, changes) => {
 
 exports.getAllInquiries = async (req, res) => {
   try {
-    const inquiries = await SalesInquiry.find().populate('customerId', 'name code').sort({ updatedAt: -1 });
-    res.json({ success: true, data: inquiries });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
+    const inquiries = await SalesInquiry.find().populate('customerId', 'name code')
+      .sort({ updatedAt: -1 }).skip(skip).limit(limit);
+    
+    const total = await SalesInquiry.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: inquiries });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createInquiry = async (req, res) => {
@@ -29,7 +38,7 @@ exports.createInquiry = async (req, res) => {
     const newInquiry = await SalesInquiry.create(req.body);
     await logAudit('CREATE', 'SalesInquiry', newInquiry._id, req.user._id);
     res.status(201).json({ success: true, data: newInquiry });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateInquiry = async (req, res) => {
@@ -38,7 +47,7 @@ exports.updateInquiry = async (req, res) => {
     if (!updated) return res.status(404).json({ success: false, message: 'Sales inquiry not found' });
     await logAudit('UPDATE', 'SalesInquiry', updated._id, req.user._id);
     res.json({ success: true, data: updated });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -46,12 +55,18 @@ exports.updateInquiry = async (req, res) => {
 
 exports.getAllQuotations = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const quotations = await SalesQuotation.find()
       .populate('customerId', 'name code')
       .populate('inquiryId', 'inquiryNumber')
-      .sort({ updatedAt: -1 });
-    res.json({ success: true, data: quotations });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ updatedAt: -1 }).skip(skip).limit(limit);
+      
+    const total = await SalesQuotation.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: quotations });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createQuotation = async (req, res) => {
@@ -75,7 +90,7 @@ exports.createQuotation = async (req, res) => {
 
     await logAudit('CREATE', 'SalesQuotation', newQuotation._id, req.user._id);
     res.status(201).json({ success: true, data: newQuotation });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.changeQuotationStatus = async (req, res) => {
@@ -100,7 +115,7 @@ exports.changeQuotationStatus = async (req, res) => {
     await quotation.save();
     await logAudit('STATUS_CHANGE', 'SalesQuotation', quotation._id, req.user._id, { versionId, status });
     res.json({ success: true, data: quotation });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 
@@ -108,12 +123,18 @@ exports.changeQuotationStatus = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const orders = await SalesOrder.find()
       .populate('customerId', 'name code')
       .populate('quotationId', 'quotationNumber')
-      .sort({ updatedAt: -1 });
-    res.json({ success: true, data: orders });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ updatedAt: -1 }).skip(skip).limit(limit);
+      
+    const total = await SalesOrder.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: orders });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createOrder = async (req, res) => {
@@ -124,7 +145,7 @@ exports.createOrder = async (req, res) => {
     });
     await logAudit('CREATE', 'SalesOrder', newOrder._id, req.user._id);
     res.status(201).json({ success: true, data: newOrder });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateOrderStatus = async (req, res) => {
@@ -133,6 +154,10 @@ exports.updateOrderStatus = async (req, res) => {
     const order = await SalesOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
+    if (status === 'Approved' && order.status !== 'Approved') {
+      return res.status(403).json({ success: false, message: 'Status cannot be manually set to Approved. It must go through the Approval Center.' });
+    }
+
     order.status = status;
     order.trackingStatus.orderStatus = status;
     order.approvalHistory.push({ user: req.user._id, action: `Status changed to ${status}`, notes: notes || '' });
@@ -140,22 +165,42 @@ exports.updateOrderStatus = async (req, res) => {
     await order.save();
     await logAudit('STATUS_UPDATE', 'SalesOrder', order._id, req.user._id, { status });
     res.json({ success: true, data: order });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.performATPCheck = async (req, res) => {
   try {
-    const { inventoryAvailable, capacityAvailable, deliveryFeasible, notes, deliveryCommitment } = req.body;
+    const { deliveryCommitment, notes } = req.body;
     const order = await SalesOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
-    order.atpCheck = { inventoryAvailable, capacityAvailable, deliveryFeasible, notes };
+    let allAvailable = true;
+    if (order.items && order.items.length > 0) {
+      for (const item of order.items) {
+        const stocks = await InventoryStock.aggregate([
+          { $match: { materialId: item.productId } },
+          { $group: { _id: null, total: { $sum: '$quantityAvailable' } } }
+        ]);
+        const available = stocks.length > 0 ? stocks[0].total : 0;
+        if (available < item.quantity) {
+          allAvailable = false;
+          break;
+        }
+      }
+    }
+
+    order.atpCheck = { 
+      inventoryAvailable: allAvailable, 
+      capacityAvailable: true, 
+      deliveryFeasible: allAvailable, 
+      notes: notes || 'Auto-checked via system against InventoryStock' 
+    };
     if (deliveryCommitment) order.deliveryCommitment = deliveryCommitment;
 
     await order.save();
     await logAudit('ATP_CHECK', 'SalesOrder', order._id, req.user._id, order.atpCheck);
     res.json({ success: true, data: order });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateTracking = async (req, res) => {
@@ -165,7 +210,7 @@ exports.updateTracking = async (req, res) => {
     if (!order) return res.status(404).json({ success: false, message: 'Sales order not found' });
     await logAudit('TRACKING_UPDATE', 'SalesOrder', order._id, req.user._id, trackingStatus);
     res.json({ success: true, data: order });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateOrder = async (req, res) => {
@@ -174,6 +219,6 @@ exports.updateOrder = async (req, res) => {
     if (!order) return res.status(404).json({ success: false, message: 'Sales order not found' });
     await logAudit('UPDATE', 'SalesOrder', order._id, req.user._id);
     res.json({ success: true, data: order });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 

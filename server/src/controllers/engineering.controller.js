@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const EngineeringBOM = require('../models/EngineeringBOM');
 const EngineeringRouting = require('../models/EngineeringRouting');
 const EngineeringChange = require('../models/EngineeringChange');
@@ -26,7 +27,7 @@ exports.getAllBOMs = async (req, res) => {
     const boms = await EngineeringBOM.find().populate('productId', 'name code').sort({ updatedAt: -1 });
     res.json({ success: true, data: boms });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -40,7 +41,7 @@ exports.getBOMById = async (req, res) => {
     if (!bom) return res.status(404).json({ success: false, message: 'BOM not found' });
     res.json({ success: true, data: bom });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -75,7 +76,7 @@ exports.createBOM = async (req, res) => {
     await logAudit('CREATE', 'EngineeringBOM', newBOM._id, req.user._id);
     res.status(201).json({ success: true, data: newBOM });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -85,7 +86,7 @@ exports.updateBOM = async (req, res) => {
     await logAudit('UPDATE', 'EngineeringBOM', updated._id, req.user._id);
     res.json({ success: true, data: updated });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -112,7 +113,7 @@ exports.addBOMRevision = async (req, res) => {
     await logAudit('REVISION_ADD', 'EngineeringBOM', bom._id, req.user._id, { revisionNumber });
     res.json({ success: true, data: bom });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -146,7 +147,7 @@ exports.changeBOMVersionStatus = async (req, res) => {
     await logAudit('STATUS_CHANGE', 'EngineeringBOM', bom._id, req.user._id, { versionId, status });
     res.json({ success: true, data: bom });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -158,7 +159,7 @@ exports.getAllRoutings = async (req, res) => {
     const routings = await EngineeringRouting.find().populate('productId', 'name code').sort({ updatedAt: -1 });
     res.json({ success: true, data: routings });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -171,7 +172,7 @@ exports.getRoutingById = async (req, res) => {
     if (!routing) return res.status(404).json({ success: false, message: 'Routing not found' });
     res.json({ success: true, data: routing });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -181,7 +182,7 @@ exports.createRouting = async (req, res) => {
     await logAudit('CREATE', 'EngineeringRouting', newRouting._id, req.user._id);
     res.status(201).json({ success: true, data: newRouting });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -191,7 +192,7 @@ exports.updateRouting = async (req, res) => {
     await logAudit('UPDATE', 'EngineeringRouting', updated._id, req.user._id);
     res.json({ success: true, data: updated });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -206,7 +207,7 @@ exports.getAllChanges = async (req, res) => {
       .sort({ updatedAt: -1 });
     res.json({ success: true, data: changes });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -223,7 +224,7 @@ exports.createChange = async (req, res) => {
     await logAudit('CREATE', 'EngineeringChange', newChange._id, req.user._id);
     res.status(201).json({ success: true, data: newChange });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -244,6 +245,6 @@ exports.updateChangeStatus = async (req, res) => {
     await logAudit('STATUS_UPDATE', 'EngineeringChange', change._id, req.user._id, { status });
     res.json({ success: true, data: change });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };

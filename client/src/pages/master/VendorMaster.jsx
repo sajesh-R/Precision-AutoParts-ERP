@@ -8,6 +8,8 @@ const VendorMaster = () => {
   const [activeTab, setActiveTab] = useState('vendors');
   const [data, setData] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+  const [paymentTerms, setPaymentTerms] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,13 +18,31 @@ const VendorMaster = () => {
 
   useEffect(() => {
     fetchData();
-    if (activeTab === 'vendors') fetchCategories();
+    if (activeTab === 'vendors') {
+      fetchCategories();
+      fetchCurrencies();
+      fetchPaymentTerms();
+    }
   }, [activeTab]);
 
   const fetchCategories = async () => {
     try {
       const res = await axios.get('/master/vendorcategory');
       setCategories(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchCurrencies = async () => {
+    try {
+      const res = await axios.get('/master/currency');
+      setCurrencies(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchPaymentTerms = async () => {
+    try {
+      const res = await axios.get('/master/paymentterms');
+      setPaymentTerms(res.data.data);
     } catch (err) { console.error(err); }
   };
 
@@ -57,12 +77,18 @@ const VendorMaster = () => {
   };
 
   const handleEdit = (row) => {
-    setFormData({ ...row, category: row.category?._id || row.category });
+    setFormData({ 
+      ...row, 
+      categoryId: row.categoryId?._id || row.categoryId,
+      currencyId: row.currencyId?._id || row.currencyId || '',
+      paymentTermsId: row.paymentTermsId?._id || row.paymentTermsId || ''
+    });
     setEditingId(row._id);
     setIsModalOpen(true);
   };
 
   const toggleStatus = async (row) => {
+    if (row.isActive && !window.confirm('Are you sure you want to deactivate this record?')) return;
     try {
       const endpoint = activeTab === 'vendors' ? '/master/vendor' : '/master/vendorcategory';
       await axios.put(`${endpoint}/${row._id}`, { isActive: !row.isActive });
@@ -82,7 +108,7 @@ const VendorMaster = () => {
 
     if (activeTab === 'vendors') {
       baseCols.push({ header: 'Code', accessor: 'code' });
-      baseCols.push({ header: 'Category', render: (row) => row.category?.name || '-' });
+      baseCols.push({ header: 'Category', render: (row) => row.categoryId?.name || '-' });
       baseCols.push({ header: 'Rating', accessor: 'rating' });
       baseCols.push({ header: 'Lead Time (Days)', accessor: 'leadTimeDays' });
       baseCols.push({ header: 'Delivery Perf', render: (row) => `${row.performanceTracking?.deliveryScore || 0}%` });
@@ -164,7 +190,7 @@ const VendorMaster = () => {
               </div>
               <div className="input-group">
                 <label className="input-label">Category</label>
-                <select className="input-field" required value={formData.category || ''} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <select className="input-field" required value={formData.categoryId || ''} onChange={e => setFormData({...formData, categoryId: e.target.value})}>
                   <option value="" disabled>Select Category</option>
                   {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                 </select>
@@ -175,22 +201,55 @@ const VendorMaster = () => {
                 )}
               </div>
               <div className="input-group">
+                <label className="input-label">GST</label>
+                <input type="text" className="input-field" value={formData.gst || ''} onChange={e => setFormData({...formData, gst: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">PAN</label>
+                <input type="text" className="input-field" value={formData.pan || ''} onChange={e => setFormData({...formData, pan: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Contact Person</label>
+                <input type="text" className="input-field" value={formData.contactPerson || ''} onChange={e => setFormData({...formData, contactPerson: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Email</label>
+                <input type="email" className="input-field" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Phone</label>
+                <input type="text" className="input-field" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              </div>
+              <div className="input-group">
                 <label className="input-label">Rating</label>
-                <select className="input-field" value={formData.rating || 'Unrated'} onChange={e => setFormData({...formData, rating: e.target.value})}>
+                <select className="input-field" value={formData.rating || 'C'} onChange={e => setFormData({...formData, rating: e.target.value})}>
                   <option value="A">A</option>
                   <option value="B">B</option>
                   <option value="C">C</option>
                   <option value="D">D</option>
-                  <option value="Unrated">Unrated</option>
                 </select>
               </div>
               <div className="input-group">
                 <label className="input-label">Lead Time (Days)</label>
-                <input type="number" className="input-field" value={formData.leadTimeDays || ''} onChange={e => setFormData({...formData, leadTimeDays: e.target.value})} />
+                <input type="number" className="input-field" value={formData.leadTimeDays || ''} onChange={e => setFormData({...formData, leadTimeDays: parseInt(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Currency</label>
+                <select className="input-field" value={formData.currencyId || ''} onChange={e => setFormData({...formData, currencyId: e.target.value})}>
+                  <option value="">Select Currency</option>
+                  {currencies.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                </select>
               </div>
               <div className="input-group">
                 <label className="input-label">Payment Terms</label>
-                <input type="text" className="input-field" placeholder="e.g. Net 30" value={formData.paymentTerms || ''} onChange={e => setFormData({...formData, paymentTerms: e.target.value})} />
+                <select className="input-field" value={formData.paymentTermsId || ''} onChange={e => setFormData({...formData, paymentTermsId: e.target.value})}>
+                  <option value="">Select Payment Terms</option>
+                  {paymentTerms.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Address</label>
+                <textarea className="input-field" value={formData.address || ''} onChange={e => setFormData({...formData, address: e.target.value})}></textarea>
               </div>
             </>
           )}

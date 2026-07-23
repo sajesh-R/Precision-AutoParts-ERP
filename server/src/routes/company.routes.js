@@ -2,6 +2,7 @@ const express = require('express');
 const { 
   getPlants, createPlant, updatePlant,
   getBranches, createBranch, updateBranch,
+  getDepartments, createDepartment, updateDepartment,
   getWarehouses, createWarehouse, updateWarehouse,
   getCostCenters, createCostCenter, updateCostCenter,
   getBusinessUnits, createBusinessUnit, updateBusinessUnit,
@@ -24,6 +25,11 @@ router.route('/plants')
   .get(requirePermission('CompanySetup', 'read'), getPlants)
   .post(requirePermission('CompanySetup', 'create'), logActivity('Plant'), createPlant);
 router.put('/plants/:id', requirePermission('CompanySetup', 'update'), logActivity('Plant'), updatePlant);
+
+router.route('/departments')
+  .get(requirePermission('CompanySetup', 'read'), getDepartments)
+  .post(requirePermission('CompanySetup', 'create'), logActivity('Department'), createDepartment);
+router.put('/departments/:id', requirePermission('CompanySetup', 'update'), logActivity('Department'), updateDepartment);
 
 router.route('/branches')
   .get(requirePermission('CompanySetup', 'read'), getBranches)

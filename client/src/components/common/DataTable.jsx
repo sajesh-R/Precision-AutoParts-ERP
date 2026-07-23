@@ -91,7 +91,13 @@ const DataTable = ({ columns, data, onEdit, onDelete, isLoading, customActions, 
                           </button>
                         )}
                         {onDelete && (
-                          <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(row); }} title="Delete" style={{ background: 'none', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '2px', display: 'flex' }}>
+                          <button type="button" onClick={(e) => { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            if (window.confirm('Are you sure you want to delete this record?')) {
+                              onDelete(row); 
+                            }
+                          }} title="Delete" style={{ background: 'none', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '2px', display: 'flex' }}>
                             <Trash2 size={14} style={{ pointerEvents: 'none' }} />
                           </button>
                         )}

@@ -8,6 +8,9 @@ const CustomerMaster = () => {
   const [activeTab, setActiveTab] = useState('customers');
   const [data, setData] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+  const [paymentTerms, setPaymentTerms] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,13 +19,39 @@ const CustomerMaster = () => {
 
   useEffect(() => {
     fetchData();
-    if (activeTab === 'customers') fetchCategories();
+    if (activeTab === 'customers') {
+      fetchCategories();
+      fetchCurrencies();
+      fetchPaymentTerms();
+      fetchUsers();
+    }
   }, [activeTab]);
 
   const fetchCategories = async () => {
     try {
       const res = await axios.get('/master/customercategory');
       setCategories(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchCurrencies = async () => {
+    try {
+      const res = await axios.get('/master/currency');
+      setCurrencies(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchPaymentTerms = async () => {
+    try {
+      const res = await axios.get('/master/paymentterms');
+      setPaymentTerms(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await axios.get('/users');
+      setUsers(res.data.data);
     } catch (err) { console.error(err); }
   };
 
@@ -41,13 +70,7 @@ const CustomerMaster = () => {
     try {
       const endpoint = activeTab === 'customers' ? '/master/customer' : '/master/customercategory';
       
-      // Clean up empty arrays/objects if needed
-      if (activeTab === 'customers') {
-        if (!formData.billingAddresses) formData.billingAddresses = [];
-        if (!formData.shippingAddresses) formData.shippingAddresses = [];
-        if (!formData.taxInformation) formData.taxInformation = {};
-      }
-
+      // Keep simple logic, the backend controller uses populate
       if (editingId) {
         await axios.put(`${endpoint}/${editingId}`, formData);
       } else {
@@ -64,12 +87,19 @@ const CustomerMaster = () => {
   };
 
   const handleEdit = (row) => {
-    setFormData({ ...row, category: row.category?._id || row.category });
+    setFormData({ 
+      ...row, 
+      categoryId: row.categoryId?._id || row.categoryId,
+      currencyId: row.currencyId?._id || row.currencyId || '',
+      paymentTermsId: row.paymentTermsId?._id || row.paymentTermsId || '',
+      salesPersonId: row.salesPersonId?._id || row.salesPersonId || ''
+    });
     setEditingId(row._id);
     setIsModalOpen(true);
   };
 
   const toggleStatus = async (row) => {
+    if (row.isActive && !window.confirm('Are you sure you want to deactivate this record?')) return;
     try {
       const endpoint = activeTab === 'customers' ? '/master/customer' : '/master/customercategory';
       await axios.put(`${endpoint}/${row._id}`, { isActive: !row.isActive });
@@ -89,9 +119,8 @@ const CustomerMaster = () => {
 
     if (activeTab === 'customers') {
       baseCols.push({ header: 'Code', accessor: 'code' });
-      baseCols.push({ header: 'Category', render: (row) => row.category?.name || '-' });
+      baseCols.push({ header: 'Category', render: (row) => row.categoryId?.name || '-' });
       baseCols.push({ header: 'Credit Limit', render: (row) => `$${row.creditLimit || 0}` });
-      baseCols.push({ header: 'Payment Terms', accessor: 'paymentTerms' });
     } else {
       baseCols.push({ header: 'Description', accessor: 'description' });
     }
@@ -170,7 +199,7 @@ const CustomerMaster = () => {
               </div>
               <div className="input-group">
                 <label className="input-label">Category</label>
-                <select className="input-field" required value={formData.category || ''} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <select className="input-field" required value={formData.categoryId || ''} onChange={e => setFormData({...formData, categoryId: e.target.value})}>
                   <option value="" disabled>Select Category</option>
                   {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                 </select>
@@ -181,17 +210,53 @@ const CustomerMaster = () => {
                 )}
               </div>
               <div className="input-group">
+                <label className="input-label">GST</label>
+                <input type="text" className="input-field" value={formData.gst || ''} onChange={e => setFormData({...formData, gst: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">PAN</label>
+                <input type="text" className="input-field" value={formData.pan || ''} onChange={e => setFormData({...formData, pan: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Email</label>
+                <input type="email" className="input-field" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Phone</label>
+                <input type="text" className="input-field" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              </div>
+              <div className="input-group">
                 <label className="input-label">Credit Limit</label>
-                <input type="number" className="input-field" value={formData.creditLimit || ''} onChange={e => setFormData({...formData, creditLimit: e.target.value})} />
+                <input type="number" className="input-field" value={formData.creditLimit || ''} onChange={e => setFormData({...formData, creditLimit: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Currency</label>
+                <select className="input-field" value={formData.currencyId || ''} onChange={e => setFormData({...formData, currencyId: e.target.value})}>
+                  <option value="">Select Currency</option>
+                  {currencies.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                </select>
               </div>
               <div className="input-group">
                 <label className="input-label">Payment Terms</label>
-                <input type="text" className="input-field" placeholder="e.g. Net 30" value={formData.paymentTerms || ''} onChange={e => setFormData({...formData, paymentTerms: e.target.value})} />
+                <select className="input-field" value={formData.paymentTermsId || ''} onChange={e => setFormData({...formData, paymentTermsId: e.target.value})}>
+                  <option value="">Select Payment Terms</option>
+                  {paymentTerms.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+                </select>
               </div>
-              {/* For brevity, simplified Tax Info for initial form */}
               <div className="input-group">
-                <label className="input-label">Tax ID (Optional)</label>
-                <input type="text" className="input-field" value={formData.taxInformation?.taxId || ''} onChange={e => setFormData({...formData, taxInformation: { ...formData.taxInformation, taxId: e.target.value }})} />
+                <label className="input-label">Billing Address</label>
+                <textarea className="input-field" value={formData.billingAddress || ''} onChange={e => setFormData({...formData, billingAddress: e.target.value})}></textarea>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Shipping Address</label>
+                <textarea className="input-field" value={formData.shippingAddress || ''} onChange={e => setFormData({...formData, shippingAddress: e.target.value})}></textarea>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Sales Person</label>
+                <select className="input-field" value={formData.salesPersonId || ''} onChange={e => setFormData({...formData, salesPersonId: e.target.value})}>
+                  <option value="">Select Sales Person</option>
+                  {users.map(u => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
+                </select>
               </div>
             </>
           )}

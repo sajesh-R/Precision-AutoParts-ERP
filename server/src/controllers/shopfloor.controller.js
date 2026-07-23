@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const ShopFloorOperator = require('../models/ShopFloorOperator');
 const ShopFloorMachine = require('../models/ShopFloorMachine');
 const ShopFloorDowntime = require('../models/ShopFloorDowntime');
@@ -25,7 +26,7 @@ exports.getAllOperators = async (req, res) => {
       .populate('workOrderId', 'workOrderNumber')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: ops });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.assignOperator = async (req, res) => {
@@ -33,7 +34,7 @@ exports.assignOperator = async (req, res) => {
     const op = await ShopFloorOperator.create(req.body);
     await logAudit('CREATE', 'ShopFloorOperator', op._id, req.user._id);
     res.status(201).json({ success: true, data: op });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateOperator = async (req, res) => {
@@ -47,7 +48,7 @@ exports.updateOperator = async (req, res) => {
     if (!op) return res.status(404).json({ success: false, message: 'Not found' });
     await logAudit('UPDATE', 'ShopFloorOperator', op._id, req.user._id);
     res.json({ success: true, data: op });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Machine Utilization =================
@@ -59,7 +60,7 @@ exports.getAllMachines = async (req, res) => {
       .populate('workOrderId', 'workOrderNumber')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: machines });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.allocateMachine = async (req, res) => {
@@ -72,7 +73,7 @@ exports.allocateMachine = async (req, res) => {
     const machine = await ShopFloorMachine.create(req.body);
     await logAudit('CREATE', 'ShopFloorMachine', machine._id, req.user._id);
     res.status(201).json({ success: true, data: machine });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateMachine = async (req, res) => {
@@ -88,7 +89,7 @@ exports.updateMachine = async (req, res) => {
     if (!machine) return res.status(404).json({ success: false, message: 'Not found' });
     await logAudit('UPDATE', 'ShopFloorMachine', machine._id, req.user._id);
     res.json({ success: true, data: machine });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Downtime Management =================
@@ -99,7 +100,7 @@ exports.getAllDowntimes = async (req, res) => {
       .populate('machineId', 'name code')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: dt });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.recordDowntime = async (req, res) => {
@@ -121,7 +122,7 @@ exports.recordDowntime = async (req, res) => {
     const dt = await ShopFloorDowntime.create(req.body);
     await logAudit('CREATE', 'ShopFloorDowntime', dt._id, req.user._id);
     res.status(201).json({ success: true, data: dt });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateDowntime = async (req, res) => {
@@ -130,7 +131,7 @@ exports.updateDowntime = async (req, res) => {
     if (!dt) return res.status(404).json({ success: false, message: 'Not found' });
     await logAudit('UPDATE', 'ShopFloorDowntime', dt._id, req.user._id);
     res.json({ success: true, data: dt });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Scrap Management =================
@@ -142,7 +143,7 @@ exports.getAllScrap = async (req, res) => {
       .populate('materialId', 'name code')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: scrap });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.recordScrap = async (req, res) => {
@@ -157,5 +158,5 @@ exports.recordScrap = async (req, res) => {
     const scrap = await ShopFloorScrap.create(req.body);
     await logAudit('CREATE', 'ShopFloorScrap', scrap._id, req.user._id);
     res.status(201).json({ success: true, data: scrap });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

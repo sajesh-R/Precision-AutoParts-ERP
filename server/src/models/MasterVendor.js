@@ -1,30 +1,30 @@
 const mongoose = require('mongoose');
+const auditPlugin = require('./plugins/auditPlugin');
 
 const vendorCategorySchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true, trim: true },
   description: String,
-  isActive: { type: Boolean, default: true },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
 }, { timestamps: true });
+vendorCategorySchema.plugin(auditPlugin);
 
 const vendorSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   code: { type: String, required: true, unique: true, trim: true },
-  category: { type: mongoose.Schema.Types.ObjectId, ref: 'VendorCategory', required: true },
-  
-  rating: { type: String, enum: ['A', 'B', 'C', 'D', 'Unrated'], default: 'Unrated' },
+  categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'VendorCategory', required: true },
+  gst: { type: String, unique: true, sparse: true },
+  pan: { type: String },
+  rating: { type: String, enum: ['A', 'B', 'C', 'D'], default: 'C' },
   leadTimeDays: { type: Number, default: 0 },
-  paymentTerms: { type: String }, // e.g., Net 30, Net 60
-  
-  performanceTracking: {
-    deliveryScore: { type: Number, min: 0, max: 100, default: 100 },
-    qualityScore: { type: Number, min: 0, max: 100, default: 100 },
-    serviceScore: { type: Number, min: 0, max: 100, default: 100 }
-  },
-  
-  isActive: { type: Boolean, default: true },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  currencyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Currency' },
+  paymentTermsId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentTerms' },
+  contactPerson: { type: String },
+  phone: { type: String },
+  email: { type: String },
+  address: { type: String },
+  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
 }, { timestamps: true });
+vendorSchema.plugin(auditPlugin);
 
 const VendorCategory = mongoose.model('VendorCategory', vendorCategorySchema);
 const Vendor = mongoose.model('Vendor', vendorSchema);

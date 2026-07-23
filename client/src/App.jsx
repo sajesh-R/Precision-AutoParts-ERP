@@ -29,6 +29,7 @@ import UomMaster from './pages/master/UomMaster';
 import WarehouseMaster from './pages/master/WarehouseMaster';
 import MachineMaster from './pages/master/MachineMaster';
 import WorkCenterMaster from './pages/master/WorkCenterMaster';
+import SystemConfiguration from './pages/master/SystemConfiguration';
 
 // Engineering Management Imports
 import BomMaster from './pages/engineering/BomMaster';
@@ -146,6 +147,7 @@ function App() {
             <Route path="master/warehouse" element={<WarehouseMaster />} />
             <Route path="master/machine" element={<MachineMaster />} />
             <Route path="master/workcenter" element={<WorkCenterMaster />} />
+            <Route path="master/system-config" element={<SystemConfiguration />} />
             
             {/* Engineering Routes */}
             <Route path="engineering/bom" element={<BomMaster />} />

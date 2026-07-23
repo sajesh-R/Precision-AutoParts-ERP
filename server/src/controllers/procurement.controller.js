@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const PurchaseRequisition = require('../models/PurchaseRequisition');
 const PurchaseRFQ = require('../models/PurchaseRFQ');
 const PurchaseOrder = require('../models/PurchaseOrder');
@@ -21,11 +22,18 @@ const logAudit = async (action, entityType, entityId, userId, changes) => {
 
 exports.getAllRequisitions = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const reqs = await PurchaseRequisition.find()
       .populate('materialId', 'name code')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: reqs });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await PurchaseRequisition.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: reqs });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createRequisition = async (req, res) => {
@@ -41,7 +49,7 @@ exports.createRequisition = async (req, res) => {
 
     await logAudit('CREATE', 'PurchaseRequisition', newReq._id, req.user._id);
     res.status(201).json({ success: true, data: newReq });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateRequisitionStatus = async (req, res) => {
@@ -53,20 +61,27 @@ exports.updateRequisitionStatus = async (req, res) => {
     }
     await logAudit('UPDATE_STATUS', 'PurchaseRequisition', reqDoc._id, req.user._id, { status });
     res.json({ success: true, data: reqDoc });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Request for Quotation (RFQ) =================
 
 exports.getAllRFQs = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const rfqs = await PurchaseRFQ.find()
       .populate('materialId', 'name code')
       .populate('invitedVendors.vendorId', 'name code')
       .populate('receivedQuotations.vendorId', 'name code')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: rfqs });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await PurchaseRFQ.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: rfqs });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createRFQ = async (req, res) => {
@@ -75,7 +90,7 @@ exports.createRFQ = async (req, res) => {
     const newRfq = await PurchaseRFQ.create(req.body);
     await logAudit('CREATE', 'PurchaseRFQ', newRfq._id, req.user._id);
     res.status(201).json({ success: true, data: newRfq });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.addQuotation = async (req, res) => {
@@ -89,7 +104,7 @@ exports.addQuotation = async (req, res) => {
     
     await logAudit('ADD_QUOTATION', 'PurchaseRFQ', rfq._id, req.user._id);
     res.json({ success: true, data: rfq });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.selectQuotation = async (req, res) => {
@@ -108,19 +123,26 @@ exports.selectQuotation = async (req, res) => {
     
     await logAudit('SELECT_QUOTATION', 'PurchaseRFQ', rfq._id, req.user._id);
     res.json({ success: true, data: rfq });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Purchase Order =================
 
 exports.getAllPurchaseOrders = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const pos = await PurchaseOrder.find()
       .populate('vendorId', 'name code')
       .populate('items.materialId', 'name code')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: pos });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await PurchaseOrder.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: pos });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createPurchaseOrder = async (req, res) => {
@@ -140,7 +162,7 @@ exports.createPurchaseOrder = async (req, res) => {
     const newPo = await PurchaseOrder.create(req.body);
     await logAudit('CREATE', 'PurchaseOrder', newPo._id, req.user._id);
     res.status(201).json({ success: true, data: newPo });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updatePOStatus = async (req, res) => {
@@ -150,24 +172,36 @@ exports.updatePOStatus = async (req, res) => {
     if (!po) {
       return res.status(404).json({ success: false, message: 'Purchase order not found' });
     }
+    
+    if (status === 'Approved' && po.status !== 'Approved') {
+      return res.status(403).json({ success: false, message: 'Status cannot be manually set to Approved. It must go through the Approval Center.' });
+    }
+
     if (status) po.status = status;
     if (deliveryStatus) po.deliveryStatus = deliveryStatus;
     await po.save();
     
     await logAudit('UPDATE_PO', 'PurchaseOrder', po._id, req.user._id, { status, deliveryStatus });
     res.json({ success: true, data: po });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Vendor Performance =================
 
 exports.getAllPerformances = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const perfs = await VendorPerformance.find()
       .populate('vendorId', 'name code')
-      .sort({ period: -1 });
-    res.json({ success: true, data: perfs });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ period: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await VendorPerformance.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: perfs });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createPerformance = async (req, res) => {
@@ -175,5 +209,5 @@ exports.createPerformance = async (req, res) => {
     const perf = await VendorPerformance.create(req.body);
     await logAudit('CREATE', 'VendorPerformance', perf._id, req.user._id);
     res.status(201).json({ success: true, data: perf });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

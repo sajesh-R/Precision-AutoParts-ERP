@@ -13,12 +13,12 @@ const { protect, requirePermission } = require('../middlewares/auth.middleware')
 const router = express.Router();
 
 router.get('/pending', protect, getPendingApprovals);
-router.post('/:id/approve', requirePermission('Approvals', 'create'), protect, approveRequest);
-router.post('/:id/reject', requirePermission('Approvals', 'create'), protect, rejectRequest);
+router.post('/:id/approve', protect, requirePermission('Approvals', 'create'), approveRequest);
+router.post('/:id/reject', protect, requirePermission('Approvals', 'create'), rejectRequest);
 
 router.get('/config', protect, getConfigs);
-router.post('/config', requirePermission('Approvals', 'create'), protect, createConfig);
-router.put('/config/:id', requirePermission('Approvals', 'update'), protect, updateConfig);
-router.delete('/config/:id', requirePermission('Approvals', 'delete'), protect, deleteConfig);
+router.post('/config', protect, requirePermission('Approvals', 'create'), createConfig);
+router.put('/config/:id', protect, requirePermission('Approvals', 'update'), updateConfig);
+router.delete('/config/:id', protect, requirePermission('Approvals', 'delete'), deleteConfig);
 
 module.exports = router;

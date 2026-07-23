@@ -49,6 +49,7 @@ const UomMaster = () => {
   };
 
   const toggleStatus = async (row) => {
+    if (row.isActive && !window.confirm('Are you sure you want to deactivate this record?')) return;
     try {
       await axios.put(`/master/uom/${row._id}`, { isActive: !row.isActive });
       fetchData();

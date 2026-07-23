@@ -6,6 +6,8 @@ import Modal from '../../components/common/Modal';
 
 const WorkCenterMaster = () => {
   const [data, setData] = useState([]);
+  const [plants, setPlants] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -14,7 +16,17 @@ const WorkCenterMaster = () => {
 
   useEffect(() => {
     fetchData();
+    fetchDependencies();
   }, []);
+
+  const fetchDependencies = async () => {
+    try {
+      const pRes = await axios.get('/company/plants');
+      setPlants(pRes.data.data);
+      const dRes = await axios.get('/company/departments');
+      setDepartments(dRes.data.data);
+    } catch (err) { console.error(err); }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -43,12 +55,17 @@ const WorkCenterMaster = () => {
   };
 
   const handleEdit = (row) => {
-    setFormData(row);
+    setFormData({
+      ...row,
+      plantId: row.plantId?._id || row.plantId,
+      departmentId: row.departmentId?._id || row.departmentId
+    });
     setEditingId(row._id);
     setIsModalOpen(true);
   };
 
   const toggleStatus = async (row) => {
+    if (row.isActive && !window.confirm('Are you sure you want to deactivate this record?')) return;
     try {
       await axios.put(`/master/workcenter/${row._id}`, { isActive: !row.isActive });
       fetchData();
@@ -58,6 +75,8 @@ const WorkCenterMaster = () => {
   const columns = [
     { header: 'Work Center Name', accessor: 'name' },
     { header: 'Code', accessor: 'code' },
+    { header: 'Plant', render: (row) => row.plantId?.name || '-' },
+    { header: 'Department', render: (row) => row.departmentId?.name || '-' },
     { header: 'Description', accessor: 'description' },
     { header: 'Status', render: (row) => (
       <span style={{ color: row.isActive ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
@@ -104,6 +123,27 @@ const WorkCenterMaster = () => {
           <div className="input-group">
             <label className="input-label">Code</label>
             <input type="text" className="input-field" required readOnly value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
+          </div>
+          <div className="input-group">
+            <label className="input-label">Plant</label>
+            <select className="input-field" required value={formData.plantId || ''} onChange={e => setFormData({...formData, plantId: e.target.value})}>
+              <option value="" disabled>Select Plant</option>
+              {plants.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="input-group">
+            <label className="input-label">Department</label>
+            <select className="input-field" required value={formData.departmentId || ''} onChange={e => setFormData({...formData, departmentId: e.target.value})}>
+              <option value="" disabled>Select Department</option>
+              {departments
+                .filter(d => !formData.plantId || (d.plantId?._id || d.plantId) === formData.plantId)
+                .map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+            </select>
+            {departments.length === 0 && (
+              <p style={{ color: 'var(--accent-danger)', fontSize: '11px', marginTop: '4px' }}>
+                * Please create a Department first.
+              </p>
+            )}
           </div>
           <div className="input-group">
             <label className="input-label">Description</label>

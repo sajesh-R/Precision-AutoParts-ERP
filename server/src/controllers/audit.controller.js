@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const { AuditLog, LoginHistory } = require('../models/Audit');
 
 // @desc    Get all audit logs
@@ -8,7 +9,7 @@ exports.getAuditLogs = async (req, res) => {
     const logs = await AuditLog.find().populate('changedBy', 'firstName lastName email').sort({ createdAt: -1 });
     res.status(200).json({ success: true, count: logs.length, data: logs });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -20,6 +21,6 @@ exports.getLoginHistory = async (req, res) => {
     const history = await LoginHistory.find().populate('userId', 'firstName lastName email').sort({ createdAt: -1 });
     res.status(200).json({ success: true, count: history.length, data: history });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };

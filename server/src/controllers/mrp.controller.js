@@ -1,9 +1,10 @@
+const { handleError } = require('../utils/errorHandler');
 const MrpRun = require('../models/MrpRun');
 const MrpRequirement = require('../models/MrpRequirement');
 const MrpShortage = require('../models/MrpShortage');
 const MrpRecommendation = require('../models/MrpRecommendation');
-const DemandConsolidation = require('../models/DemandConsolidation');
 const EngineeringBOM = require('../models/EngineeringBOM');
+const PurchaseOrder = require('../models/PurchaseOrder');
 const InventoryStock = require('../models/InventoryStock');
 const InventoryOptimization = require('../models/InventoryOptimization');
 const { AuditLog } = require('../models/Audit');
@@ -38,7 +39,7 @@ exports.getAllMrpRuns = async (req, res) => {
   try {
     const runs = await MrpRun.find().sort({ createdAt: -1 });
     res.json({ success: true, data: runs });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.executeMrpRun = async (req, res) => {
@@ -126,8 +127,19 @@ exports.executeMrpRun = async (req, res) => {
       const currentStock = await getAvailableStock(req.itemId);
       // Get safety stock requirement
       const safetyStock = req.requirementType === 'Material' ? await getSafetyStock(req.itemId) : 0;
-      // Net requirement = gross requirement + safety stock - current stock
-      const netRequirement = req.requiredQuantity + safetyStock - currentStock;
+      
+      // Calculate incoming supply from open Purchase Orders
+      let incomingSupply = 0;
+      if (req.requirementType === 'Material') {
+        const openPOs = await PurchaseOrder.find({ status: { $in: ['Approved', 'Dispatched'] } });
+        openPOs.forEach(po => {
+          const item = po.items.find(i => i.materialId.toString() === req.itemId.toString());
+          if (item) incomingSupply += item.quantity;
+        });
+      }
+
+      // Net requirement = gross requirement + safety stock - current stock - incoming supply
+      const netRequirement = req.requiredQuantity + safetyStock - currentStock - incomingSupply;
       
       if (netRequirement > 0) {
         let shortageType = req.requirementType === 'Material' ? 'RawMaterial' : 'Component';
@@ -167,7 +179,7 @@ exports.executeMrpRun = async (req, res) => {
     if (mrpRun && mrpRun._id) {
       await MrpRun.findByIdAndUpdate(mrpRun._id, { status: 'Failed', notes: error.message }).catch(() => {});
     }
-    res.status(500).json({ success: false, message: error.message }); 
+    handleError(res, error); 
   }
 };
 
@@ -177,34 +189,55 @@ exports.executeMrpRun = async (req, res) => {
 exports.getRequirements = async (req, res) => {
   try {
     const { runId } = req.query;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const filter = runId ? { mrpRunId: runId } : {};
     const reqs = await MrpRequirement.find(filter)
       .populate('mrpRunId', 'runNumber period')
-      .sort({ requirementType: 1 });
-    res.json({ success: true, data: reqs });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ requirementType: 1 })
+      .skip(skip).limit(limit);
+      
+    const total = await MrpRequirement.countDocuments(filter);
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: reqs });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getShortages = async (req, res) => {
   try {
     const { runId } = req.query;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const filter = runId ? { mrpRunId: runId } : {};
     const shortages = await MrpShortage.find(filter)
       .populate('mrpRunId', 'runNumber period')
-      .sort({ shortageType: 1 });
-    res.json({ success: true, data: shortages });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ shortageType: 1 })
+      .skip(skip).limit(limit);
+      
+    const total = await MrpShortage.countDocuments(filter);
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: shortages });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.getRecommendations = async (req, res) => {
   try {
     const { runId } = req.query;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const filter = runId ? { mrpRunId: runId } : {};
     const recs = await MrpRecommendation.find(filter)
       .populate('mrpRunId', 'runNumber period')
-      .sort({ suggestionType: 1 });
-    res.json({ success: true, data: recs });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ suggestionType: 1 })
+      .skip(skip).limit(limit);
+      
+    const total = await MrpRecommendation.countDocuments(filter);
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: recs });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateRecommendationStatus = async (req, res) => {
@@ -214,5 +247,5 @@ exports.updateRecommendationStatus = async (req, res) => {
     if (!rec) return res.status(404).json({ success: false, message: 'Recommendation not found' });
     await logAudit('STATUS_CHANGE', 'MrpRecommendation', rec._id, req.user._id, { status });
     res.json({ success: true, data: rec });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const CapacityMachine = require('../models/CapacityMachine');
 const CapacityLabor = require('../models/CapacityLabor');
 const ProductionSchedule = require('../models/ProductionSchedule');
@@ -23,7 +24,7 @@ exports.getAllMachineCapacities = async (req, res) => {
       .populate('workCenterId', 'name code type')
       .sort({ period: -1 });
     res.json({ success: true, data: capacities });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createMachineCapacity = async (req, res) => {
@@ -31,7 +32,7 @@ exports.createMachineCapacity = async (req, res) => {
     const newCap = await CapacityMachine.create(req.body);
     await logAudit('CREATE', 'CapacityMachine', newCap._id, req.user._id);
     res.status(201).json({ success: true, data: newCap });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateMachineCapacity = async (req, res) => {
@@ -44,7 +45,7 @@ exports.updateMachineCapacity = async (req, res) => {
 
     await logAudit('UPDATE', 'CapacityMachine', cap._id, req.user._id);
     res.json({ success: true, data: cap });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Labor Capacity =================
@@ -53,7 +54,7 @@ exports.getAllLaborCapacities = async (req, res) => {
   try {
     const capacities = await CapacityLabor.find().sort({ period: -1 });
     res.json({ success: true, data: capacities });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createLaborCapacity = async (req, res) => {
@@ -61,7 +62,7 @@ exports.createLaborCapacity = async (req, res) => {
     const newCap = await CapacityLabor.create(req.body);
     await logAudit('CREATE', 'CapacityLabor', newCap._id, req.user._id);
     res.status(201).json({ success: true, data: newCap });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateLaborCapacity = async (req, res) => {
@@ -69,7 +70,7 @@ exports.updateLaborCapacity = async (req, res) => {
     const cap = await CapacityLabor.findByIdAndUpdate(req.params.id, req.body, { new: true });
     await logAudit('UPDATE', 'CapacityLabor', cap._id, req.user._id);
     res.json({ success: true, data: cap });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Production Scheduling =================
@@ -84,7 +85,7 @@ exports.getAllSchedules = async (req, res) => {
       .populate('assignedWorkCenterId', 'name code')
       .sort({ targetDate: 1 });
     res.json({ success: true, data: schedules });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createSchedule = async (req, res) => {
@@ -92,7 +93,7 @@ exports.createSchedule = async (req, res) => {
     const newSched = await ProductionSchedule.create(req.body);
     await logAudit('CREATE', 'ProductionSchedule', newSched._id, req.user._id);
     res.status(201).json({ success: true, data: newSched });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateSchedule = async (req, res) => {
@@ -100,5 +101,5 @@ exports.updateSchedule = async (req, res) => {
     const sched = await ProductionSchedule.findByIdAndUpdate(req.params.id, req.body, { new: true });
     await logAudit('UPDATE', 'ProductionSchedule', sched._id, req.user._id);
     res.json({ success: true, data: sched });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

@@ -100,6 +100,33 @@ const RolesPermissions = () => {
     return mod && mod[category] ? mod[category].includes(value) : false;
   };
 
+  const isAllSelected = () => {
+    if (formData.permissions.length !== ALL_MODULES.length) return false;
+    for (const mod of ALL_MODULES) {
+      const p = formData.permissions.find(x => x.module === mod);
+      if (!p) return false;
+      for (const [cat, vals] of Object.entries(PERM_CATEGORIES)) {
+        if (!p[cat] || p[cat].length !== vals.length) return false;
+      }
+    }
+    return true;
+  };
+
+  const toggleSelectAll = (checked) => {
+    if (checked) {
+      const allPerms = ALL_MODULES.map(moduleName => {
+        const modPerms = { module: moduleName };
+        Object.entries(PERM_CATEGORIES).forEach(([category, values]) => {
+          modPerms[category] = [...values];
+        });
+        return modPerms;
+      });
+      setFormData(prev => ({ ...prev, permissions: allPerms }));
+    } else {
+      setFormData(prev => ({ ...prev, permissions: [] }));
+    }
+  };
+
   const columns = [
     { header: 'Role Name', render: (row) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -205,9 +232,20 @@ const RolesPermissions = () => {
             ))}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-            <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">{editingId ? 'Update Role' : 'Save Role'}</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>
+              <input 
+                type="checkbox" 
+                checked={isAllSelected()}
+                onChange={(e) => toggleSelectAll(e.target.checked)}
+                style={{ cursor: 'pointer', accentColor: 'var(--accent-primary)', width: '16px', height: '16px' }}
+              />
+              Select All Permissions
+            </label>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary">{editingId ? 'Update Role' : 'Save Role'}</button>
+            </div>
           </div>
         </form>
       </Modal>

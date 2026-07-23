@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const InventoryStock = require('../models/InventoryStock');
 const InventoryTransaction = require('../models/InventoryTransaction');
 const InventoryOptimization = require('../models/InventoryOptimization');
@@ -43,20 +44,27 @@ exports.getInventoryControl = async (req, res) => {
     });
 
     res.json({ success: true, data: grouped });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Inventory Transactions =================
 
 exports.getAllTransactions = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const transactions = await InventoryTransaction.find()
       .populate('materialId', 'name code')
       .populate('sourceWarehouseId', 'name')
       .populate('destinationWarehouseId', 'name')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: transactions });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await InventoryTransaction.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: transactions });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createTransaction = async (req, res) => {
@@ -105,7 +113,7 @@ exports.createTransaction = async (req, res) => {
 
     await logAudit('CREATE', 'InventoryTransaction', transaction._id, req.user._id);
     res.status(201).json({ success: true, data: transaction });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // Helpers for dynamic stock updates
@@ -145,9 +153,16 @@ async function addStock(materialId, warehouseId, qty, batchNumber) {
 
 exports.getOptimization = async (req, res) => {
   try {
-    const opts = await InventoryOptimization.find().populate('materialId', 'name code category');
-    res.json({ success: true, data: opts });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
+    const opts = await InventoryOptimization.find().populate('materialId', 'name code category')
+      .skip(skip).limit(limit);
+      
+    const total = await InventoryOptimization.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: opts });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateOptimization = async (req, res) => {
@@ -162,7 +177,7 @@ exports.updateOptimization = async (req, res) => {
     }
     await logAudit('UPDATE', 'InventoryOptimization', opt._id, req.user._id);
     res.json({ success: true, data: opt });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.runAnalysis = async (req, res) => {
@@ -216,16 +231,23 @@ exports.runAnalysis = async (req, res) => {
       );
     }
     res.json({ success: true, message: 'ABC Analysis Completed using real consumption data' });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Inventory Valuation =================
 
 exports.getValuation = async (req, res) => {
   try {
-    const vals = await InventoryValuation.find().populate('materialId', 'name code standardCost');
-    res.json({ success: true, data: vals });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
+    const vals = await InventoryValuation.find().populate('materialId', 'name code standardCost')
+      .skip(skip).limit(limit);
+      
+    const total = await InventoryValuation.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: vals });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.calculateValuation = async (req, res) => {
@@ -260,19 +282,26 @@ exports.calculateValuation = async (req, res) => {
       );
     }
     res.json({ success: true, message: 'Valuation calculated successfully using real stock data' });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= Traceability Management =================
 
 exports.getAllTraceability = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const traces = await InventoryTraceability.find()
       .populate('materialId', 'name code')
       .populate('originTransactionId', 'transactionNumber transactionType')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: traces });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await InventoryTraceability.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: traces });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createTraceability = async (req, res) => {
@@ -281,5 +310,5 @@ exports.createTraceability = async (req, res) => {
     const newTrace = await InventoryTraceability.create(req.body);
     await logAudit('CREATE', 'InventoryTraceability', newTrace._id, req.user._id);
     res.status(201).json({ success: true, data: newTrace });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

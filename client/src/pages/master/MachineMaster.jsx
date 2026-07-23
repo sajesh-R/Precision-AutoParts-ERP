@@ -6,6 +6,10 @@ import Modal from '../../components/common/Modal';
 
 const MachineMaster = () => {
   const [data, setData] = useState([]);
+  const [plants, setPlants] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [workCenters, setWorkCenters] = useState([]);
+  const [uoms, setUoms] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -14,7 +18,23 @@ const MachineMaster = () => {
 
   useEffect(() => {
     fetchData();
+    fetchDependencies();
   }, []);
+
+  const fetchDependencies = async () => {
+    try {
+      const [pRes, dRes, wRes, uRes] = await Promise.all([
+        axios.get('/company/plants'),
+        axios.get('/company/departments'),
+        axios.get('/master/workcenter'),
+        axios.get('/master/uom')
+      ]);
+      setPlants(pRes.data.data);
+      setDepartments(dRes.data.data);
+      setWorkCenters(wRes.data.data);
+      setUoms(uRes.data.data);
+    } catch (err) { console.error(err); }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -43,12 +63,19 @@ const MachineMaster = () => {
   };
 
   const handleEdit = (row) => {
-    setFormData(row);
+    setFormData({
+      ...row,
+      plantId: row.plantId?._id || row.plantId,
+      departmentId: row.departmentId?._id || row.departmentId,
+      workCenterId: row.workCenterId?._id || row.workCenterId,
+      uomId: row.uomId?._id || row.uomId
+    });
     setEditingId(row._id);
     setIsModalOpen(true);
   };
 
   const toggleStatus = async (row) => {
+    if (row.isActive && !window.confirm('Are you sure you want to deactivate this record?')) return;
     try {
       await axios.put(`/master/machine/${row._id}`, { isActive: !row.isActive });
       fetchData();
@@ -58,6 +85,9 @@ const MachineMaster = () => {
   const columns = [
     { header: 'Machine Name', accessor: 'name' },
     { header: 'Code', accessor: 'code' },
+    { header: 'Plant', render: (row) => row.plantId?.name || '-' },
+    { header: 'Department', render: (row) => row.departmentId?.name || '-' },
+    { header: 'Work Center', render: (row) => row.workCenterId?.name || '-' },
     { header: 'Hourly Cost', render: (row) => `$${row.hourlyCost || 0}` },
     { header: 'Status', render: (row) => (
       <span style={{ color: row.isActive ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
@@ -106,8 +136,59 @@ const MachineMaster = () => {
             <input type="text" className="input-field" required readOnly value={formData.code || ''} onChange={e => setFormData({...formData, code: e.target.value})} />
           </div>
           <div className="input-group">
+            <label className="input-label">Plant</label>
+            <select className="input-field" required value={formData.plantId || ''} onChange={e => setFormData({...formData, plantId: e.target.value})}>
+              <option value="" disabled>Select Plant</option>
+              {plants.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="input-group">
+            <label className="input-label">Department</label>
+            <select className="input-field" required value={formData.departmentId || ''} onChange={e => setFormData({...formData, departmentId: e.target.value})}>
+              <option value="" disabled>Select Department</option>
+              {departments
+                .filter(d => !formData.plantId || (d.plantId?._id || d.plantId) === formData.plantId)
+                .map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div className="input-group">
+            <label className="input-label">Work Center (Optional)</label>
+            <select className="input-field" value={formData.workCenterId || ''} onChange={e => setFormData({...formData, workCenterId: e.target.value})}>
+              <option value="">None / Standalone Machine</option>
+              {workCenters
+                .filter(w => !formData.departmentId || (w.departmentId?._id || w.departmentId) === formData.departmentId)
+                .map(w => <option key={w._id} value={w._id}>{w.name}</option>)}
+            </select>
+          </div>
+          <div className="input-group">
             <label className="input-label">Hourly Cost ($)</label>
             <input type="number" className="input-field" value={formData.hourlyCost || ''} onChange={e => setFormData({...formData, hourlyCost: e.target.value})} />
+          </div>
+          <div className="input-group" style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ flex: 1 }}>
+              <label className="input-label">Capacity / Rate</label>
+              <input type="number" className="input-field" value={formData.capacity || ''} onChange={e => setFormData({...formData, capacity: e.target.value})} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className="input-label">Capacity UOM</label>
+              <select className="input-field" value={formData.uomId || ''} onChange={e => setFormData({...formData, uomId: e.target.value})}>
+                <option value="">Select UOM</option>
+                {uoms.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Manufacturer</label>
+            <input type="text" className="input-field" value={formData.manufacturer || ''} onChange={e => setFormData({...formData, manufacturer: e.target.value})} />
+          </div>
+          <div className="input-group">
+            <label className="input-label">Serial Number</label>
+            <input type="text" className="input-field" value={formData.serialNumber || ''} onChange={e => setFormData({...formData, serialNumber: e.target.value})} />
+          </div>
+          <div className="input-group">
+            <label className="input-label">Purchase Date</label>
+            <input type="date" className="input-field" value={formData.purchaseDate ? formData.purchaseDate.split('T')[0] : ''} onChange={e => setFormData({...formData, purchaseDate: e.target.value})} />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>

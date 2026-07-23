@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const User = require('../models/User');
 const Role = require('../models/Role');
 
@@ -9,7 +10,7 @@ exports.getUsers = async (req, res) => {
     const users = await User.find().populate('role', 'name').populate('plantId branchId');
     res.status(200).json({ success: true, count: users.length, data: users });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -43,7 +44,7 @@ exports.createUser = async (req, res) => {
 
     res.status(201).json({ success: true, data: user });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -70,6 +71,6 @@ exports.updateUserStatus = async (req, res) => {
 
     res.status(200).json({ success: true, data: user });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };

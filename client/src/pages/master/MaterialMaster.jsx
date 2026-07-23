@@ -9,6 +9,8 @@ const MaterialMaster = () => {
   const [data, setData] = useState([]);
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [uoms, setUoms] = useState([]);
+  const [bins, setBins] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,6 +22,8 @@ const MaterialMaster = () => {
     if (activeTab === 'materials') {
       fetchCategories();
       fetchVendors();
+      fetchUoms();
+      fetchBins();
     }
   }, [activeTab]);
 
@@ -34,6 +38,20 @@ const MaterialMaster = () => {
     try {
       const res = await axios.get('/master/vendor');
       setVendors(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchUoms = async () => {
+    try {
+      const res = await axios.get('/master/uom');
+      setUoms(res.data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchBins = async () => {
+    try {
+      const res = await axios.get('/master/bin');
+      setBins(res.data.data);
     } catch (err) { console.error(err); }
   };
 
@@ -70,14 +88,17 @@ const MaterialMaster = () => {
   const handleEdit = (row) => {
     setFormData({ 
       ...row, 
-      category: row.category?._id || row.category,
-      preferredVendor: row.preferredVendor?._id || row.preferredVendor || ''
+      categoryId: row.categoryId?._id || row.categoryId,
+      uomId: row.uomId?._id || row.uomId,
+      preferredVendorId: row.preferredVendorId?._id || row.preferredVendorId || '',
+      defaultBinId: row.defaultBinId?._id || row.defaultBinId || ''
     });
     setEditingId(row._id);
     setIsModalOpen(true);
   };
 
   const toggleStatus = async (row) => {
+    if (row.isActive && !window.confirm('Are you sure you want to deactivate this record?')) return;
     try {
       const endpoint = activeTab === 'materials' ? '/master/material' : '/master/materialcategory';
       await axios.put(`${endpoint}/${row._id}`, { isActive: !row.isActive });
@@ -97,7 +118,7 @@ const MaterialMaster = () => {
 
     if (activeTab === 'materials') {
       baseCols.push({ header: 'Code', accessor: 'code' });
-      baseCols.push({ header: 'Category', render: (row) => row.category?.name || '-' });
+      baseCols.push({ header: 'Category', render: (row) => row.categoryId?.name || '-' });
       baseCols.push({ header: 'Grade', accessor: 'grade' });
       baseCols.push({ header: 'Standard Cost', render: (row) => `$${row.standardCost || 0}` });
     } else {
@@ -178,7 +199,7 @@ const MaterialMaster = () => {
               </div>
               <div className="input-group">
                 <label className="input-label">Category</label>
-                <select className="input-field" required value={formData.category || ''} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <select className="input-field" required value={formData.categoryId || ''} onChange={e => setFormData({...formData, categoryId: e.target.value})}>
                   <option value="" disabled>Select Category</option>
                   {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                 </select>
@@ -189,19 +210,53 @@ const MaterialMaster = () => {
                 )}
               </div>
               <div className="input-group">
+                <label className="input-label">UOM (Unit of Measure)</label>
+                <select className="input-field" required value={formData.uomId || ''} onChange={e => setFormData({...formData, uomId: e.target.value})}>
+                  <option value="" disabled>Select UOM</option>
+                  {uoms.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
+                </select>
+              </div>
+              <div className="input-group">
                 <label className="input-label">Grade</label>
                 <input type="text" className="input-field" value={formData.grade || ''} onChange={e => setFormData({...formData, grade: e.target.value})} />
               </div>
               <div className="input-group">
                 <label className="input-label">Preferred Vendor</label>
-                <select className="input-field" value={formData.preferredVendor || ''} onChange={e => setFormData({...formData, preferredVendor: e.target.value})}>
+                <select className="input-field" value={formData.preferredVendorId || ''} onChange={e => setFormData({...formData, preferredVendorId: e.target.value})}>
                   <option value="">None</option>
                   {vendors.map(v => <option key={v._id} value={v._id}>{v.name}</option>)}
                 </select>
               </div>
               <div className="input-group">
                 <label className="input-label">Standard Cost</label>
-                <input type="number" className="input-field" value={formData.standardCost || ''} onChange={e => setFormData({...formData, standardCost: e.target.value})} />
+                <input type="number" step="any" className="input-field" value={formData.standardCost || ''} onChange={e => setFormData({...formData, standardCost: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Lead Time (Days)</label>
+                <input type="number" className="input-field" value={formData.leadTimeDays || ''} onChange={e => setFormData({...formData, leadTimeDays: parseInt(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Shelf Life (Days)</label>
+                <input type="number" className="input-field" value={formData.shelfLifeDays || ''} onChange={e => setFormData({...formData, shelfLifeDays: parseInt(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Minimum Stock</label>
+                <input type="number" className="input-field" value={formData.minStock || ''} onChange={e => setFormData({...formData, minStock: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Maximum Stock</label>
+                <input type="number" className="input-field" value={formData.maxStock || ''} onChange={e => setFormData({...formData, maxStock: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Reorder Level</label>
+                <input type="number" className="input-field" value={formData.reorderLevel || ''} onChange={e => setFormData({...formData, reorderLevel: parseFloat(e.target.value) || 0})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Storage Bin</label>
+                <select className="input-field" value={formData.defaultBinId || ''} onChange={e => setFormData({...formData, defaultBinId: e.target.value})}>
+                  <option value="">Select Bin (Optional)</option>
+                  {bins.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                </select>
               </div>
             </>
           )}

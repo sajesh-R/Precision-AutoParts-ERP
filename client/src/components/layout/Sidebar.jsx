@@ -76,6 +76,7 @@ const Sidebar = () => {
     { path: '/master/warehouse', label: 'Warehouse Config' },
     { path: '/master/machine', label: 'Machine Master' },
     { path: '/master/workcenter', label: 'Work Center Master' },
+    { path: '/master/system-config', label: 'System Configuration' },
   ];
 
   const engineeringItems = [

@@ -1,3 +1,4 @@
+const { handleError } = require('../utils/errorHandler');
 const Role = require('../models/Role');
 
 // @desc    Get all roles
@@ -8,7 +9,7 @@ exports.getRoles = async (req, res) => {
     const roles = await Role.find();
     res.status(200).json({ success: true, count: roles.length, data: roles });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -32,7 +33,7 @@ exports.createRole = async (req, res) => {
 
     res.status(201).json({ success: true, data: role });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -59,7 +60,7 @@ exports.updateRole = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedRole });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -82,7 +83,7 @@ exports.deleteRole = async (req, res) => {
 
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };
 
@@ -98,6 +99,6 @@ exports.updateRole = async (req, res) => {
     const updatedRole = await Role.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     res.status(200).json({ success: true, data: updatedRole });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    handleError(res, error);
   }
 };

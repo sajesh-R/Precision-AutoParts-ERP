@@ -1,9 +1,10 @@
+const { handleError } = require('../utils/errorHandler');
 const FinanceAR = require('../models/FinanceAR');
 const FinanceAP = require('../models/FinanceAP');
 const FinanceLedger = require('../models/FinanceLedger');
 const FinanceTax = require('../models/FinanceTax');
 const { AuditLog } = require('../models/Audit');
-
+const mongoose = require('mongoose');
 const logAudit = async (action, entityType, entityId, userId, changes) => {
   try {
     await AuditLog.create({
@@ -20,24 +21,35 @@ const logAudit = async (action, entityType, entityId, userId, changes) => {
 
 exports.getARInvoices = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const invoices = await FinanceAR.find()
       .populate('customerId', 'name code')
       .populate('salesOrderId', 'orderNumber')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: invoices });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await FinanceAR.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: invoices });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createARInvoice = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     req.body.invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
     req.body.totalAmount = (Number(req.body.amount) || 0) + (Number(req.body.taxAmount) || 0);
     req.body.outstandingAmount = req.body.totalAmount;
-    const invoice = await FinanceAR.create(req.body);
+    
+    const invoiceArray = await FinanceAR.create([req.body], { session });
+    const invoice = invoiceArray[0];
 
     // Auto-post to General Ledger: Debit Accounts Receivable, Credit Revenue
     const jeNumber = `JE-${Date.now().toString().slice(-6)}`;
-    await FinanceLedger.create({
+    await FinanceLedger.create([{
       entryNumber: `${jeNumber}-DR`,
       description: `AR Invoice ${invoice.invoiceNumber} - Accounts Receivable`,
       accountName: 'Accounts Receivable',
@@ -46,8 +58,9 @@ exports.createARInvoice = async (req, res) => {
       referenceType: 'Invoice',
       referenceId: invoice._id,
       status: 'Posted'
-    });
-    await FinanceLedger.create({
+    }], { session });
+    
+    await FinanceLedger.create([{
       entryNumber: `${jeNumber}-CR`,
       description: `AR Invoice ${invoice.invoiceNumber} - Revenue`,
       accountName: 'Sales Revenue',
@@ -56,9 +69,10 @@ exports.createARInvoice = async (req, res) => {
       referenceType: 'Invoice',
       referenceId: invoice._id,
       status: 'Posted'
-    });
+    }], { session });
+    
     if (invoice.taxAmount > 0) {
-      await FinanceLedger.create({
+      await FinanceLedger.create([{
         entryNumber: `${jeNumber}-TX`,
         description: `AR Invoice ${invoice.invoiceNumber} - Output Tax`,
         accountName: 'Output Tax Payable',
@@ -67,12 +81,18 @@ exports.createARInvoice = async (req, res) => {
         referenceType: 'Invoice',
         referenceId: invoice._id,
         status: 'Posted'
-      });
+      }], { session });
     }
 
     await logAudit('CREATE', 'FinanceAR', invoice._id, req.user._id);
+    await session.commitTransaction();
+    session.endSession();
     res.status(201).json({ success: true, data: invoice });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    handleError(res, error);
+  }
 };
 
 exports.addARPayment = async (req, res) => {
@@ -103,31 +123,42 @@ exports.addARPayment = async (req, res) => {
 
     await logAudit('UPDATE', 'FinanceAR', invoice._id, req.user._id, { action: 'Payment Added' });
     res.json({ success: true, data: invoice });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= ACCOUNTS PAYABLE =================
 
 exports.getAPBills = async (req, res) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
     const bills = await FinanceAP.find()
       .populate('vendorId', 'name code')
       .populate('purchaseOrderId', 'poNumber')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: bills });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+      .sort({ createdAt: -1 })
+      .skip(skip).limit(limit);
+      
+    const total = await FinanceAP.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: bills });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createAPBill = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     req.body.billNumber = `BILL-${Date.now().toString().slice(-6)}`;
     req.body.totalAmount = (Number(req.body.amount) || 0) + (Number(req.body.taxAmount) || 0);
     req.body.outstandingAmount = req.body.totalAmount;
-    const bill = await FinanceAP.create(req.body);
+    
+    const billArray = await FinanceAP.create([req.body], { session });
+    const bill = billArray[0];
 
     // Auto-post to General Ledger: Debit Expense/Purchases, Credit Accounts Payable
     const jeNumber = `JE-${Date.now().toString().slice(-6)}`;
-    await FinanceLedger.create({
+    await FinanceLedger.create([{
       entryNumber: `${jeNumber}-DR`,
       description: `AP Bill ${bill.billNumber} - Purchase Expense`,
       accountName: 'Purchase Expense',
@@ -136,9 +167,10 @@ exports.createAPBill = async (req, res) => {
       referenceType: 'Bill',
       referenceId: bill._id,
       status: 'Posted'
-    });
+    }], { session });
+    
     if (bill.taxAmount > 0) {
-      await FinanceLedger.create({
+      await FinanceLedger.create([{
         entryNumber: `${jeNumber}-TX`,
         description: `AP Bill ${bill.billNumber} - Input Tax`,
         accountName: 'Input Tax Receivable',
@@ -147,9 +179,10 @@ exports.createAPBill = async (req, res) => {
         referenceType: 'Bill',
         referenceId: bill._id,
         status: 'Posted'
-      });
+      }], { session });
     }
-    await FinanceLedger.create({
+    
+    await FinanceLedger.create([{
       entryNumber: `${jeNumber}-CR`,
       description: `AP Bill ${bill.billNumber} - Accounts Payable`,
       accountName: 'Accounts Payable',
@@ -158,11 +191,17 @@ exports.createAPBill = async (req, res) => {
       referenceType: 'Bill',
       referenceId: bill._id,
       status: 'Posted'
-    });
+    }], { session });
 
     await logAudit('CREATE', 'FinanceAP', bill._id, req.user._id);
+    await session.commitTransaction();
+    session.endSession();
     res.status(201).json({ success: true, data: bill });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    handleError(res, error);
+  }
 };
 
 exports.addAPPayment = async (req, res) => {
@@ -193,16 +232,21 @@ exports.addAPPayment = async (req, res) => {
 
     await logAudit('UPDATE', 'FinanceAP', bill._id, req.user._id, { action: 'Payment Sent' });
     res.json({ success: true, data: bill });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= GENERAL LEDGER =================
 
 exports.getLedgers = async (req, res) => {
   try {
-    const entries = await FinanceLedger.find().sort({ createdAt: -1 });
-    res.json({ success: true, data: entries });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
+    const entries = await FinanceLedger.find().sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const total = await FinanceLedger.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: entries });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createLedgerEntry = async (req, res) => {
@@ -211,7 +255,7 @@ exports.createLedgerEntry = async (req, res) => {
     const entry = await FinanceLedger.create(req.body);
     await logAudit('CREATE', 'FinanceLedger', entry._id, req.user._id);
     res.status(201).json({ success: true, data: entry });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.postLedgerEntry = async (req, res) => {
@@ -220,16 +264,21 @@ exports.postLedgerEntry = async (req, res) => {
     if (!entry) return res.status(404).json({ success: false, message: 'Entry not found' });
     await logAudit('UPDATE', 'FinanceLedger', entry._id, req.user._id, { status: 'Posted' });
     res.json({ success: true, data: entry });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= TAX MANAGEMENT =================
 
 exports.getTaxes = async (req, res) => {
   try {
-    const taxes = await FinanceTax.find().sort({ createdAt: -1 });
-    res.json({ success: true, data: taxes });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
+
+    const taxes = await FinanceTax.find().sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const total = await FinanceTax.countDocuments();
+    res.json({ success: true, pagination: { page, limit, total, pages: Math.ceil(total/limit) }, data: taxes });
+  } catch (error) { handleError(res, error); }
 };
 
 exports.createTax = async (req, res) => {
@@ -237,7 +286,7 @@ exports.createTax = async (req, res) => {
     const tax = await FinanceTax.create(req.body);
     await logAudit('CREATE', 'FinanceTax', tax._id, req.user._id);
     res.status(201).json({ success: true, data: tax });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.updateTax = async (req, res) => {
@@ -246,7 +295,7 @@ exports.updateTax = async (req, res) => {
     if (!tax) return res.status(404).json({ success: false, message: 'Tax not found' });
     await logAudit('UPDATE', 'FinanceTax', tax._id, req.user._id);
     res.json({ success: true, data: tax });
-  } catch (error) { res.status(400).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 exports.generateTaxReport = async (req, res) => {
@@ -279,7 +328,7 @@ exports.generateTaxReport = async (req, res) => {
         purchaseTransactions: purchases
       }
     });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= FINANCIAL STATEMENTS =================
@@ -336,7 +385,7 @@ exports.getStatements = async (req, res) => {
         cashFlow: { operatingActivities: (totalRevenue - totalExpenses) - arTotal + apTotal }
       }
     });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };
 
 // ================= COST ACCOUNTING =================
@@ -402,5 +451,5 @@ exports.getCosting = async (req, res) => {
     };
     
     res.json({ success: true, data });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) { handleError(res, error); }
 };

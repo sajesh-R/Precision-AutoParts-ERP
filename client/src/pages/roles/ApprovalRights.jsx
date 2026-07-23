@@ -44,6 +44,12 @@ const ApprovalRights = () => {
       return alert('You must add at least one approval level.');
     }
 
+    const selectedRoles = formData.levels.map(l => l.roleId);
+    const uniqueRoles = new Set(selectedRoles);
+    if (uniqueRoles.size !== selectedRoles.length) {
+      return alert('Duplicate roles are not allowed. A role can only be assigned to one approval level per rule.');
+    }
+
     try {
       if (editingId) {
         await axios.put(`/approvals/config/${editingId}`, formData);
@@ -87,6 +93,7 @@ const ApprovalRights = () => {
   };
 
   const removeLevel = (index) => {
+    if (!window.confirm('Are you sure you want to remove this level?')) return;
     setFormData(prev => {
       const newLevels = prev.levels.filter((_, i) => i !== index).map((l, i) => ({ ...l, level: i + 1 }));
       return { ...prev, levels: newLevels };
